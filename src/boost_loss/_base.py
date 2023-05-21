@@ -98,7 +98,7 @@ class LossBase(metaclass=ABCMeta):
     ) -> tuple[NDArray, NDArray]:
         """Sklearn-compatible interface (Sklearn, LightGBM, XGBoost)"""
         if isinstance(y_pred, lgb.Dataset) or isinstance(y_pred, xgb.DMatrix):
-            # swap (it is so fucking that the order is inconsistent)
+            # NOTE: swap (it is so fucking that the order is inconsistent)
             y_true, y_pred = y_pred, y_true
         y_true, weight = _dataset_to_ndarray(y=y_true)
         y_pred, _ = _dataset_to_ndarray(y=y_pred)
@@ -120,6 +120,7 @@ class LossBase(metaclass=ABCMeta):
         weights_ = np.array(weights) if weights is not None else np.ones_like(preds_)
         grad, hess = self.grad_hess(y_true=targets_, y_pred=preds_)
         grad, hess = grad * weights_, hess * weights_
+        # NOTE: in catboost, the definition of loss is the inverse
         grad, hess = grad * -self.grad_hess_sign, hess * -self.grad_hess_sign
         return list(zip(grad, hess))
 
@@ -158,7 +159,7 @@ class LossBase(metaclass=ABCMeta):
     ) -> tuple[str, float, bool]:
         """Sklearn-compatible interface (LightGBM)"""
         if isinstance(y_pred, lgb.Dataset) or isinstance(y_pred, xgb.DMatrix):
-            # swap (it is so fucking that the order is inconsistent)
+            # NOTE: swap (it is so fucking that the order is inconsistent)
             y_true, y_pred = y_pred, y_true
         y_true, weight = _dataset_to_ndarray(y=y_true)
         y_pred, _ = _dataset_to_ndarray(y=y_pred)
