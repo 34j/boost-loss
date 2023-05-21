@@ -1,0 +1,23 @@
+# Changes here will be overwritten by Copier
+_commit: bc6c810
+_src_path: gh:34j/pypackage-template-fork
+add_me_as_contributor: true
+copyright_year: '2023'
+documentation: true
+email: 34j.95a2p@simplelogin.com
+full_name: 34j
+github_username: 34j
+initial_commit: true
+open_source_license: MIT
+open_with_vscode: true
+package_name: boost_loss
+project_name: Boost Loss
+project_short_description: Utilities for easy use of custom losses in CatBoost, LightGBM,
+    XGBoost
+project_slug: boost-loss
+run_poetry_install: true
+setup_github: true
+setup_pre_commit: true
+setup_venv: true
+venv_version: '3.10'
+
