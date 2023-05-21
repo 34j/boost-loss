@@ -1,15 +1,24 @@
+from functools import lru_cache
 from unittest import SkipTest, TestCase
 
 import catboost as cb
 import lightgbm as lgb
 import numpy as np
 import xgboost as xgb
+from numpy.testing import assert_allclose
 from parameterized import parameterized_class
 from sklearn.datasets import load_diabetes
 from sklearn.model_selection import train_test_split
 
 from boost_loss._base import LossBase
 from boost_loss.regression import L2Loss
+
+
+def assert_array_almost_equal(a, b):
+    try:
+        assert_allclose(a, b, rtol=1e-2, atol=1e-7)
+    except Exception as e:
+        raise AssertionError(f"{a[:3]}... != {b[:3]}...") from e
 
 
 class TestBase(TestCase):
@@ -27,11 +36,36 @@ class TestBase(TestCase):
             score = self.loss.loss(self.y_test, self.y_pred)
             print(f"Score: {score}")
 
+    @lru_cache
+    def catboost_baseline(self):
+        model = cb.CatBoostRegressor(loss_function="RMSE")
+        model.fit(self.X_train, self.y_train, eval_set=(self.X_test, self.y_test))
+        return model.predict(self.X_test)
+
+    @lru_cache
+    def lightgbm_baseline(self):
+        model = lgb.LGBMRegressor(objective="regression")
+        model.fit(
+            self.X_train,
+            self.y_train,
+            eval_set=[(self.X_train, self.y_train), (self.X_test, self.y_test)],
+        )
+        return model.predict(self.X_test)
+
+    @lru_cache
+    def xgboost_baseline(self):
+        model = xgb.XGBRegressor(objective="reg:squarederror")
+        model.fit(
+            self.X_train,
+            self.y_train,
+            eval_set=[(self.X_train, self.y_train), (self.X_test, self.y_test)],
+        )
+        return model.predict(self.X_test)
+
 
 @parameterized_class(
     ("loss",),
     [
-        # (L1Loss(),),
         (L2Loss(),),
     ],
 )
@@ -41,6 +75,7 @@ class TestBasic(TestBase):
         model = cb.CatBoostRegressor(loss_function=self.loss, eval_metric=self.loss)
         model.fit(self.X_train, self.y_train, eval_set=(self.X_test, self.y_test))
         self.y_pred = model.predict(self.X_test)
+        assert_array_almost_equal(self.y_pred, self.catboost_baseline())
 
     def test_catboost_native(self):
         model = cb.CatBoostRegressor(loss_function=self.loss, eval_metric=self.loss)
@@ -48,6 +83,7 @@ class TestBasic(TestBase):
         test_pool = cb.Pool(self.X_test, self.y_test)
         model.fit(train_pool, eval_set=test_pool)
         self.y_pred = model.predict(test_pool)
+        assert_array_almost_equal(self.y_pred, self.catboost_baseline())
 
     def test_lightgbm_sklearn(self):
         model = lgb.LGBMRegressor(objective=self.loss)
@@ -58,6 +94,7 @@ class TestBasic(TestBase):
             eval_metric=self.loss.eval_metric_lgb,
         )
         self.y_pred = model.predict(self.X_test)
+        assert_array_almost_equal(self.y_pred, self.lightgbm_baseline())
 
     def test_lightgbm_native(self):
         train_set = lgb.Dataset(self.X_train, self.y_train)
@@ -70,6 +107,7 @@ class TestBasic(TestBase):
             feval=self.loss.eval_metric_lgb,
         )
         self.y_pred = booster.predict(self.X_test)
+        assert_array_almost_equal(self.y_pred, self.lightgbm_baseline())
 
     def test_xgboost_sklearn(self):
         # https://xgboost.readthedocs.io/en/latest/tutorials/custom_metric_obj.html#customized-objective-function
@@ -83,6 +121,7 @@ class TestBasic(TestBase):
             eval_set=[(self.X_train, self.y_train), (self.X_test, self.y_test)],
         )
         self.y_pred = model.predict(self.X_test)
+        assert_array_almost_equal(self.y_pred, self.xgboost_baseline())
 
     def test_xgboost_native(self):
         # https://xgboost.readthedocs.io/en/latest/tutorials/custom_metric_obj.html#scikit-learn-interface
@@ -91,11 +130,13 @@ class TestBasic(TestBase):
         booster = xgb.train(
             {"seed": self.seed},
             train_set,
+            num_boost_round=100,  # it is fucking that default value is different
             evals=[(train_set, "train"), (test_set, "test")],
             obj=self.loss,
             custom_metric=self.loss.eval_metric_xgb_native,
         )
         self.y_pred = booster.predict(test_set)
+        assert_array_almost_equal(self.y_pred, self.xgboost_baseline())
 
     def test_sklearn_sklearn(self):
         raise SkipTest("Not implemented yet")
@@ -104,7 +145,6 @@ class TestBasic(TestBase):
 @parameterized_class(
     ("loss",),
     [
-        # (L1Loss(),),
         (L2Loss(),),
     ],
 )
@@ -179,6 +219,7 @@ class TestWeighted(TestBase):
         booster = xgb.train(
             {"seed": self.seed},
             train_set,
+            num_boost_round=100,  # it is fucking that default value is different
             evals=[(train_set, "train"), (test_set, "test")],
             obj=self.loss,
             custom_metric=self.loss.eval_metric_xgb_native,

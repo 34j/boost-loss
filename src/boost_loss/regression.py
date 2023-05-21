@@ -18,6 +18,7 @@ class LNLoss(LossBase):
     x >> 2 is not recommended because the gradient is too steep."""
 
     n: float
+    multiply_n: bool = False
 
     @property
     def name(self) -> str:
@@ -28,11 +29,19 @@ class LNLoss(LossBase):
 
     def grad(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
         y_diff = y_pred - y_true
-        return self.n * np.abs(y_diff) ** (self.n - 1) * np.sign(y_diff)
+        return (
+            np.abs(y_diff) ** (self.n - 1)
+            * np.sign(y_diff)
+            * (self.n if self.multiply_n else 1)
+        )
 
     def hess(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
         y_diff = y_pred - y_true
-        return self.n * (self.n - 1) * np.abs(y_diff) ** (self.n - 2)
+        return (
+            (self.n - 1)
+            * np.abs(y_diff) ** (self.n - 2)
+            * (self.n if self.multiply_n else 1)
+        )
 
 
 class L1Loss(LNLoss):
@@ -43,18 +52,3 @@ class L1Loss(LNLoss):
 class L2Loss(LNLoss):
     def __init__(self) -> None:
         super().__init__(n=2)
-
-
-@attrs.define
-class DebugLoss(LossBase):
-    loss_: LossBase
-
-    def loss(self, y_true: NDArray, y_pred: NDArray) -> float | NDArray:
-        loss = self.loss_.loss(y_true=y_true, y_pred=y_pred)
-        LOG.debug(f"y_pred: {y_pred}, loss: {loss}")
-        return loss
-
-    def grad_hess(self, y_true: NDArray, y_pred: NDArray) -> tuple[NDArray, NDArray]:
-        grad, hess = self.loss_.grad_hess(y_true=y_true, y_pred=y_pred)
-        LOG.debug(f"y_pred: {y_pred}, grad: {grad}, hess: {hess}")
-        return grad, hess

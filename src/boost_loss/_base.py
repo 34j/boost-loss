@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import warnings
 from abc import ABCMeta
 from logging import getLogger
 from numbers import Real
-from typing import Sequence, final
+from typing import Any, Sequence, final
 
 import attrs
 import humps
@@ -49,12 +51,12 @@ class LossBase(metaclass=ABCMeta):
 
     @property
     def grad_hess_sign(self) -> int:
-        return 1 if self.is_higher_better else -1
+        return -1 if self.is_higher_better else 1
 
-    def __new__(cls) -> Self:
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         grad_inherited = cls.grad is not LossBase.grad
         hess_inherited = cls.hess is not LossBase.hess
-        grad_hess_inherited = grad_inherited and hess_inherited
+        grad_hess_inherited = cls.grad_hess is not LossBase.grad_hess
         if grad_inherited and hess_inherited:
             pass
         elif grad_hess_inherited:
@@ -64,7 +66,7 @@ class LossBase(metaclass=ABCMeta):
                 f"Can't instantiate abstract class {cls.__name__} "
                 "with grad_hess or both grad and hess not implemented"
             )
-        return super().__new__(cls)
+        super().__init_subclass__(**kwargs)
 
     @property
     def name(self) -> str:
@@ -95,8 +97,11 @@ class LossBase(metaclass=ABCMeta):
         y_pred: NDArray | lgb.Dataset | xgb.DMatrix,
     ) -> tuple[NDArray, NDArray]:
         """Sklearn-compatible interface (Sklearn, LightGBM, XGBoost)"""
-        y_true, _ = _dataset_to_ndarray(y=y_true)
-        y_pred, weight = _dataset_to_ndarray(y=y_pred)
+        if isinstance(y_pred, lgb.Dataset) or isinstance(y_pred, xgb.DMatrix):
+            # swap (it is so fucking that the order is inconsistent)
+            y_true, y_pred = y_pred, y_true
+        y_true, weight = _dataset_to_ndarray(y=y_true)
+        y_pred, _ = _dataset_to_ndarray(y=y_pred)
         grad, hess = self.grad_hess(y_true=y_true, y_pred=y_pred)
         grad, hess = grad * weight, hess * weight
         grad, hess = grad * self.grad_hess_sign, hess * self.grad_hess_sign
@@ -115,7 +120,7 @@ class LossBase(metaclass=ABCMeta):
         weights_ = np.array(weights) if weights is not None else np.ones_like(preds_)
         grad, hess = self.grad_hess(y_true=targets_, y_pred=preds_)
         grad, hess = grad * weights_, hess * weights_
-        grad, hess = grad * self.grad_hess_sign, hess * self.grad_hess_sign
+        grad, hess = grad * -self.grad_hess_sign, hess * -self.grad_hess_sign
         return list(zip(grad, hess))
 
     @final
@@ -138,7 +143,7 @@ class LossBase(metaclass=ABCMeta):
         if isinstance(loss, float) and not np.allclose(weights_, 1.0):
             warnings.warn("loss() should return ndarray when weight is not all 1.0")
             return loss, np.nan
-        return float(np.sum(loss)), float(np.sum(loss * weights_))
+        return float(np.sum(loss * weights_)), float(np.sum(weights_))
 
     @final
     def get_final_error(self, error: float, weight: float | None = None) -> float:
@@ -152,15 +157,18 @@ class LossBase(metaclass=ABCMeta):
         y_pred: NDArray | lgb.Dataset | xgb.DMatrix,
     ) -> tuple[str, float, bool]:
         """Sklearn-compatible interface (LightGBM)"""
-        y_true, _ = _dataset_to_ndarray(y=y_true)
-        y_pred, weight = _dataset_to_ndarray(y=y_pred)
+        if isinstance(y_pred, lgb.Dataset) or isinstance(y_pred, xgb.DMatrix):
+            # swap (it is so fucking that the order is inconsistent)
+            y_true, y_pred = y_pred, y_true
+        y_true, weight = _dataset_to_ndarray(y=y_true)
+        y_pred, _ = _dataset_to_ndarray(y=y_pred)
         loss = self.loss(y_true=y_true, y_pred=y_pred)
         if isinstance(loss, float) and not np.allclose(weight, 1.0):
             warnings.warn("loss() should return ndarray when weight is not all 1.0")
             return self.name, loss, self.is_higher_better
         return (
             self.name,
-            float(np.sum(loss * weight)),
+            float(np.sum(loss * weight) / (np.sum(weight) + 1e-38)),
             self.is_higher_better,
         )
 
@@ -182,23 +190,23 @@ class LossBase(metaclass=ABCMeta):
         result = self.eval_metric_lgb(y_true=y_true, y_pred=y_pred)
         return result[1]
 
-    def __add__(self, other: "LossBase") -> "LossBase":
+    def __add__(self, other: LossBase) -> LossBase:
         if not isinstance(other, LossBase):
             return NotImplemented  # type: ignore
         return _LossSum(self, other)
 
-    def __sub__(self, other: "LossBase") -> "LossBase":
+    def __sub__(self, other: LossBase) -> LossBase:
         return self.__add__(-other)
 
-    def __mul__(self, other: float | int | Real) -> "LossBase":
+    def __mul__(self, other: float | int | Real) -> LossBase:
         if not isinstance(other, Real):
             return NotImplemented
         return _LossMul(self, other)
 
-    def __div__(self, other: float | int | Real) -> "LossBase":
+    def __div__(self, other: float | int | Real) -> LossBase:
         return self.__mul__(1.0 / other)
 
-    def __neg__(self) -> "LossBase":
+    def __neg__(self) -> LossBase:
         return self.__mul__(-1.0)
 
     def __pos__(self) -> Self:
