@@ -50,16 +50,23 @@ class LossBase(metaclass=ABCMeta):
     is_higher_better: bool = False
 
     @classmethod
-    def from_function(cls, name: str, loss: Callable[[NDArray, NDArray], NDArray], grad: Callable[[NDArray, NDArray], NDArray], hess: Callable[[NDArray, NDArray], NDArray], is_higher_better: bool = False) -> type[LossBase]:
+    def from_function(
+        cls,
+        name: str,
+        loss: Callable[[NDArray, NDArray], NDArray],
+        grad: Callable[[NDArray, NDArray], NDArray],
+        hess: Callable[[NDArray, NDArray], NDArray],
+        is_higher_better: bool = False,
+    ) -> type[LossBase]:
         return attrs.make_class(
             name,
             bases=(cls,),
             attrs=dict(
-            loss=loss,
-            grad=grad,
-            hess=hess,
-            is_higher_better=is_higher_better,
-            )
+                loss=loss,
+                grad=grad,
+                hess=hess,
+                is_higher_better=is_higher_better,
+            ),
         )
 
     @property

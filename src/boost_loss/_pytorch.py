@@ -1,7 +1,7 @@
 from abc import ABCMeta
 from typing import Callable
-import attrs
 
+import attrs
 import torch
 from numpy.typing import NDArray
 from typing_extensions import Self
@@ -36,9 +36,13 @@ class TorchLossBase(LossBase, metaclass=ABCMeta):
 
     def grad_torch(self, y_true: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError()
-    
+
     def loss(self, y_true: NDArray, y_pred: NDArray) -> NDArray | float:
-        return self.loss_torch(torch.from_numpy(y_true), torch.from_numpy(y_pred)).detach().numpy()
+        return (
+            self.loss_torch(torch.from_numpy(y_true), torch.from_numpy(y_pred))
+            .detach()
+            .numpy()
+        )
 
     def grad_hess(self, y_true: NDArray, y_pred: NDArray) -> tuple[NDArray, NDArray]:
         y_true_ = torch.from_numpy(y_true).requires_grad_(True)
@@ -68,6 +72,7 @@ class TorchLossBase(LossBase, metaclass=ABCMeta):
                 is_higher_better=is_higher_better,
             ),
         )
+
 
 class _L2LossTorch(TorchLossBase):
     """L2 loss for PyTorch."""
