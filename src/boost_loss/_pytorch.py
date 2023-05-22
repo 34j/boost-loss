@@ -1,8 +1,12 @@
 from abc import ABCMeta
+from typing import Callable
+import attrs
 
 import torch
 from numpy.typing import NDArray
 from typing_extensions import Self
+
+from boost_loss._base import LossBase
 
 from ._base import LossBase
 
@@ -32,6 +36,9 @@ class TorchLossBase(LossBase, metaclass=ABCMeta):
 
     def grad_torch(self, y_true: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError()
+    
+    def loss(self, y_true: NDArray, y_pred: NDArray) -> NDArray | float:
+        return self.loss_torch(torch.from_numpy(y_true), torch.from_numpy(y_pred)).detach().numpy()
 
     def grad_hess(self, y_true: NDArray, y_pred: NDArray) -> tuple[NDArray, NDArray]:
         y_true_ = torch.from_numpy(y_true).requires_grad_(True)
@@ -45,3 +52,25 @@ class TorchLossBase(LossBase, metaclass=ABCMeta):
             grad = torch.autograd.grad(loss, y_true_, create_graph=True)[0]
         hess = torch.autograd.grad(grad, y_true_, create_graph=True)[0]
         return grad.detach().numpy(), hess.detach().numpy()
+
+    @classmethod
+    def from_function_torch(
+        cls,
+        name: str,
+        loss: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+        is_higher_better: bool = False,
+    ) -> type["TorchLossBase"]:
+        return attrs.make_class(
+            name,
+            bases=(cls,),
+            attrs=dict(
+                loss_torch=loss,
+                is_higher_better=is_higher_better,
+            ),
+        )
+
+class _L2LossTorch(TorchLossBase):
+    """L2 loss for PyTorch."""
+
+    def loss_torch(self, y_true: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
+        return torch.abs(y_true - y_pred) ** 2 / 2
