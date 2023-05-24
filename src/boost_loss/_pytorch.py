@@ -1,12 +1,10 @@
 from abc import ABCMeta
-from typing import Callable
+from typing import Any, Callable, final
 
 import attrs
+import numpy as np
 import torch
 from numpy.typing import NDArray
-from typing_extensions import Self
-
-from boost_loss._base import LossBase
 
 from ._base import LossBase
 
@@ -19,7 +17,7 @@ class TorchLossBase(LossBase, metaclass=ABCMeta):
     https://github.com/TomerRonen34/treeboost_autograd/blob/main/treeboost_autograd/pytorch_objective.py
     """
 
-    def __new__(cls) -> Self:
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         loss_inherited = cls.loss_torch is not TorchLossBase.loss_torch
         grad_inherited = cls.grad_torch is not TorchLossBase.grad_torch
         if loss_inherited or grad_inherited:
@@ -29,35 +27,90 @@ class TorchLossBase(LossBase, metaclass=ABCMeta):
                 f"Can't instantiate abstract class {cls.__name__} "
                 "with loss_torch or grad_torch not implemented"
             )
-        return super().__new__(cls)
+        return super().__init_subclass__(**kwargs)
 
     def loss_torch(self, y_true: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
+        """Calculate loss.
+
+        Parameters
+        ----------
+        y_true : torch.Tensor
+            The true target values.
+        y_pred : torch.Tensor
+            The predicted target values.
+
+        Returns
+        -------
+        torch.Tensor
+            0-dim or 1-dim tensor of shape (n_samples,). Return 1-dim tensor if possible
+            to utilize weights in the dataset if available.
+
+        Raises
+        ------
+        NotImplementedError
+            If not implemented.
+        """
         raise NotImplementedError()
 
     def grad_torch(self, y_true: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
+        """The 1st order derivative of loss w.r.t. y_pred.
+
+        Parameters
+        ----------
+        y_true : torch.Tensor
+            The true target values.
+        y_pred : torch.Tensor
+            The predicted target values.
+
+        Returns
+        -------
+        torch.Tensor
+            The gradient of loss w.r.t. y_pred. 1-dim tensor of shape (n_samples,).
+
+        Raises
+        ------
+        NotImplementedError
+            If not implemented.
+        """
         raise NotImplementedError()
 
+    @final
     def loss(self, y_true: NDArray, y_pred: NDArray) -> NDArray | float:
-        return (
-            self.loss_torch(torch.from_numpy(y_true), torch.from_numpy(y_pred))
-            .detach()
-            .numpy()
-        )
+        loss = self.loss_torch(
+            torch.from_numpy(y_true), torch.from_numpy(y_pred)
+        ).detach()
+        if loss.ndim == 0:
+            return loss.item()
+        else:
+            return loss.numpy()
 
+    @final
     def grad_hess(self, y_true: NDArray, y_pred: NDArray) -> tuple[NDArray, NDArray]:
-        y_true_ = torch.from_numpy(y_true).requires_grad_(True)
-        y_pred_ = torch.from_numpy(y_pred)
+        y_true_ = torch.from_numpy(y_true)
+        y_pred_ = torch.from_numpy(y_pred).requires_grad_(True)
 
         try:
-            loss = self.loss_torch(y_true_, y_pred_)
-        except NotImplementedError:
             grad = self.grad_torch(y_true_, y_pred_)
+        except NotImplementedError:
+            loss = torch.mean(self.loss_torch(y_true_, y_pred_)) * y_true_.size(0)
+            grad = torch.autograd.grad(loss, y_pred_, create_graph=True)[0]
+            hess = np.array(
+                [
+                    torch.autograd.grad(grad_, y_pred_, retain_graph=True)[0][i].item()
+                    for i, grad_ in enumerate(grad)
+                ]
+            )
         else:
-            grad = torch.autograd.grad(loss, y_true_, create_graph=True)[0]
-        hess = torch.autograd.grad(grad, y_true_, create_graph=True)[0]
-        return grad.detach().numpy(), hess.detach().numpy()
+            hess = np.array(
+                [
+                    torch.autograd.grad(grad_, y_pred_, create_graph=True)[0][i].item()
+                    for i, grad_ in enumerate(grad)
+                ]
+            )
+        return grad.detach().numpy(), hess
 
     @classmethod
+    @final
     def from_function_torch(
         cls,
         name: str,
@@ -74,8 +127,42 @@ class TorchLossBase(LossBase, metaclass=ABCMeta):
         )
 
 
-class _L2LossTorch(TorchLossBase):
-    """L2 loss for PyTorch."""
+@attrs.define(kw_only=True)
+class _LNLossTorch_(TorchLossBase):
+    """L^n loss for PyTorch."""
+
+    n: float
+    divide_n_loss: bool = False
+    divide_n_grad: bool = False
 
     def loss_torch(self, y_true: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
-        return torch.abs(y_true - y_pred) ** 2 / 2
+        if self.divide_n_grad != self.divide_n_loss:
+            raise ValueError(
+                "divide_n_grad and divide_n_loss must be the same, "
+                f"but got {self.divide_n_grad} and {self.divide_n_loss}"
+            )
+        return torch.abs(y_true - y_pred) ** self.n / (
+            self.n if self.divide_n_loss else 1
+        )
+
+
+@attrs.define(kw_only=True)
+class _LNLossTorch(TorchLossBase):
+    """L^n loss for PyTorch."""
+
+    n: float
+    divide_n_loss: bool = False
+    divide_n_grad: bool = True
+
+    def loss_torch(self, y_true: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
+        return torch.abs(y_pred - y_true) ** self.n / (
+            self.n if self.divide_n_loss else 1
+        )
+
+    def grad_torch(self, y_true: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
+        return (
+            torch.sign(y_pred - y_true)
+            * torch.abs(y_pred - y_true) ** (self.n - 1)
+            * self.n
+            / (self.n if self.divide_n_grad else 1)
+        )

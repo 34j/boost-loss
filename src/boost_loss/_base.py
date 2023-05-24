@@ -36,20 +36,25 @@ def _dataset_to_ndarray(
 
 class LossBase(metaclass=ABCMeta):
     """Base class for loss functions.
+    Inherit this class to implement custom loss function.
 
     See Also
     --------
     Catboost:
     https://catboost.ai/en/docs/concepts/python-usages-examples#user-defined-loss-function
+
     LightGBM:
     https://lightgbm.readthedocs.io/en/latest/Advanced-Topics.html#custom-objective-function
+
     XGBoost:
     https://xgboost.readthedocs.io/en/latest/tutorials/custom_metric_obj.html
     """
 
     is_higher_better: bool = False
+    """Whether the result of loss function is better when it is higher."""
 
     @classmethod
+    @final
     def from_function(
         cls,
         name: str,
@@ -70,7 +75,7 @@ class LossBase(metaclass=ABCMeta):
         )
 
     @property
-    def grad_hess_sign(self) -> int:
+    def _grad_hess_sign(self) -> int:
         return -1 if self.is_higher_better else 1
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
@@ -90,22 +95,100 @@ class LossBase(metaclass=ABCMeta):
 
     @property
     def name(self) -> str:
-        return humps.camelize(self.__class__.__name__)
+        """Name of loss function.
 
-    @property
-    def __name__(self) -> str:
-        return self.name
+        Returns
+        -------
+        str
+            Snake case of class name. e.g. `LogCoshLoss` -> `log_cosh_loss`.
+        """
+        return humps.decamelize(self.__class__.__name__)
 
     def grad(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
+        """The 1st order derivative (gradient) of loss w.r.t. y_pred.
+
+        Parameters
+        ----------
+        y_true : NDArray
+            The true target values.
+        y_pred : NDArray
+            The predicted target values.
+
+        Returns
+        -------
+        NDArray
+            The gradient of loss function. 1-D array with shape (n_samples,).
+
+        Raises
+        ------
+        NotImplementedError
+            If not implemented.
+        """
         raise NotImplementedError()
 
     def hess(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
+        """The 2nd order derivative (hessian) of loss w.r.t. y_pred.
+
+        Parameters
+        ----------
+        y_true : NDArray
+            The true target values.
+        y_pred : NDArray
+            The predicted target values.
+
+        Returns
+        -------
+        NDArray
+            The hessian of loss function. 1-D array with shape (n_samples,).
+
+        Raises
+        ------
+        NotImplementedError
+            If not implemented.
+        """
         raise NotImplementedError()
 
     def loss(self, y_true: NDArray, y_pred: NDArray) -> NDArray | float:
+        """Loss function. If 1-D array is returned, the mean of array is calculated.
+        Return 1-D array if possible in order to utilize weights in the dataset
+        if available.
+
+        Parameters
+        ----------
+        y_true : NDArray
+            The true target values.
+        y_pred : NDArray
+            The predicted target values.
+
+        Returns
+        -------
+        NDArray | float
+            The loss function. 1-D array with shape (n_samples,) or float.
+
+        Raises
+        ------
+        NotImplementedError
+            If not implemented.
+        """
         raise NotImplementedError()
 
     def grad_hess(self, y_true: NDArray, y_pred: NDArray) -> tuple[NDArray, NDArray]:
+        """Gradient and hessian of loss function. Override this method if you want to
+        calculate both gradient and hessian at the same time.
+
+        Parameters
+        ----------
+        y_true : NDArray
+            The true target values.
+        y_pred : NDArray
+            The predicted target values.
+
+        Returns
+        -------
+        tuple[NDArray, NDArray]
+            The gradient and hessian of loss function.
+            1-D array with shape (n_samples,).
+        """
         return self.grad(y_true=y_true, y_pred=y_pred), self.hess(
             y_true=y_true, y_pred=y_pred
         )
@@ -124,7 +207,7 @@ class LossBase(metaclass=ABCMeta):
         y_pred, _ = _dataset_to_ndarray(y=y_pred)
         grad, hess = self.grad_hess(y_true=y_true, y_pred=y_pred)
         grad, hess = grad * weight, hess * weight
-        grad, hess = grad * self.grad_hess_sign, hess * self.grad_hess_sign
+        grad, hess = grad * self._grad_hess_sign, hess * self._grad_hess_sign
         return grad, hess
 
     @final
@@ -141,7 +224,7 @@ class LossBase(metaclass=ABCMeta):
         grad, hess = self.grad_hess(y_true=targets_, y_pred=preds_)
         grad, hess = grad * weights_, hess * weights_
         # NOTE: in catboost, the definition of loss is the inverse
-        grad, hess = grad * -self.grad_hess_sign, hess * -self.grad_hess_sign
+        grad, hess = grad * -self._grad_hess_sign, hess * -self._grad_hess_sign
         return list(zip(grad, hess))
 
     @final
@@ -177,7 +260,7 @@ class LossBase(metaclass=ABCMeta):
         y_true: NDArray | lgb.Dataset | xgb.DMatrix,
         y_pred: NDArray | lgb.Dataset | xgb.DMatrix,
     ) -> tuple[str, float, bool]:
-        """Sklearn-compatible interface (LightGBM)"""
+        """LightGBM-compatible interface"""
         if isinstance(y_pred, lgb.Dataset) or isinstance(y_pred, xgb.DMatrix):
             # NOTE: swap (it is so fucking that the order is inconsistent)
             y_true, y_pred = y_pred, y_true
@@ -199,6 +282,7 @@ class LossBase(metaclass=ABCMeta):
         y_true: NDArray | lgb.Dataset | xgb.DMatrix,
         y_pred: NDArray | lgb.Dataset | xgb.DMatrix,
     ) -> tuple[str, float]:
+        """XGBoost-native-api-compatible interface"""
         result = self.eval_metric_lgb(y_true=y_true, y_pred=y_pred)
         return result[0], result[1]
 
@@ -208,6 +292,7 @@ class LossBase(metaclass=ABCMeta):
         y_true: NDArray | lgb.Dataset | xgb.DMatrix,
         y_pred: NDArray | lgb.Dataset | xgb.DMatrix,
     ) -> float:
+        """XGBoost-sklearn-api-compatible interface"""
         result = self.eval_metric_lgb(y_true=y_true, y_pred=y_pred)
         return result[1]
 
