@@ -113,17 +113,26 @@ class TorchLossBase(LossBase, metaclass=ABCMeta):
     @final
     def from_function_torch(
         cls,
-        name: str,
         loss: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+        name: str | None = None,
         is_higher_better: bool = False,
     ) -> type["TorchLossBase"]:
-        return attrs.make_class(
+        if name is None and hasattr(loss, "__name__"):
+            name = getattr(loss, "__name__") + f"{cls.__name__}"
+        if (
+            name is None
+            and hasattr(loss, "__class__")
+            and hasattr(getattr(loss, "__class__"), "__name__")
+        ):
+            name = getattr(getattr(loss, "__class__"), "__name__") + f"{cls.__name__}"
+        if name is None or name == f"<lambda>{cls.__name__}":
+            raise ValueError(
+                "Could not infer name from loss function. Please specify name."
+            )
+        return type(
             name,
-            bases=(cls,),
-            attrs=dict(
-                loss_torch=loss,
-                is_higher_better=is_higher_better,
-            ),
+            (cls,),
+            dict(loss_torch=staticmethod(loss), is_higher_better=is_higher_better),
         )
 
 

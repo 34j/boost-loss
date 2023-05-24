@@ -2,6 +2,7 @@ from unittest import TestCase
 
 import numpy as np
 from parameterized import parameterized_class
+from torch.nn.modules.loss import MSELoss
 
 from boost_loss._base import LossBase
 from boost_loss._pytorch import TorchLossBase, _LNLossTorch, _LNLossTorch_
@@ -15,6 +16,7 @@ from .test_base import assert_array_almost_equal
     [
         (_LNLossTorch_(n=2, divide_n_loss=False), L2Loss(divide_n_grad=False)),
         (_LNLossTorch(n=2, divide_n_grad=True), L2Loss(divide_n_grad=True)),
+        (TorchLossBase.from_function_torch(MSELoss())(), L2Loss(divide_n_grad=False)),
     ],
 )
 class TestLossTorch(TestCase):
@@ -29,8 +31,8 @@ class TestLossTorch(TestCase):
         loss_torch = self.loss_torch
         loss_base = self.loss_base
         assert_array_almost_equal(
-            loss_torch.loss(self.y_true, self.y_pred),
-            loss_base.loss(self.y_true, self.y_pred),
+            np.mean(loss_torch.loss(self.y_true, self.y_pred)),
+            np.mean(loss_base.loss(self.y_true, self.y_pred)),
         )
         assert_array_almost_equal(
             loss_torch.grad_hess(self.y_true, self.y_pred)[0],

@@ -57,19 +57,31 @@ class LossBase(metaclass=ABCMeta):
     @final
     def from_function(
         cls,
-        name: str,
         loss: Callable[[NDArray, NDArray], NDArray],
         grad: Callable[[NDArray, NDArray], NDArray],
         hess: Callable[[NDArray, NDArray], NDArray],
+        name: str | None = None,
         is_higher_better: bool = False,
     ) -> type[LossBase]:
-        return attrs.make_class(
+        if name is None and hasattr(loss, "__name__"):
+            name = getattr(loss, "__name__") + f"{cls.__name__}"
+        if (
+            name is None
+            and hasattr(loss, "__class__")
+            and hasattr(getattr(loss, "__class__"), "__name__")
+        ):
+            name = getattr(getattr(loss, "__class__"), "__name__") + f"{cls.__name__}"
+        if name is None or name == f"<lambda>{cls.__name__}":
+            raise ValueError(
+                "Could not infer name from loss function. Please specify name."
+            )
+        return type(
             name,
-            bases=(cls,),
-            attrs=dict(
-                loss=loss,
-                grad=grad,
-                hess=hess,
+            (cls,),
+            dict(
+                loss=staticmethod(loss),
+                grad=staticmethod(grad),
+                hess=staticmethod(hess),
                 is_higher_better=is_higher_better,
             ),
         )
