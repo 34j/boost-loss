@@ -2,7 +2,7 @@ from unittest import TestCase
 
 import numpy as np
 
-from boost_loss.regression import L1Loss, L2Loss
+from boost_loss.regression.regression import L1Loss, L2Loss
 
 
 class TestRegression(TestCase):

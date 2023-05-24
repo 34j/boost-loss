@@ -5,8 +5,9 @@ import attrs
 import numpy as np
 import torch
 from numpy.typing import NDArray
+from typing_extensions import Self
 
-from ._base import LossBase
+from ._base import LossBase, _get_name_from_callable
 
 
 class TorchLossBase(LossBase, metaclass=ABCMeta):
@@ -14,7 +15,7 @@ class TorchLossBase(LossBase, metaclass=ABCMeta):
     One of `loss_torch` and `grad_torch` must be implemented.
 
     Inspired by
-    https://github.com/TomerRonen34/treeboost_autograd/blob/main/treeboost_autograd/pytorch_objective.py
+    https://github.com/TomerRonen34/treeboost_autograd/blob/main/treeboost_autograd/pytorch_objective.py # noqa: E501
     """
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
@@ -30,7 +31,10 @@ class TorchLossBase(LossBase, metaclass=ABCMeta):
         return super().__init_subclass__(**kwargs)
 
     def loss_torch(self, y_true: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
-        """Calculate loss.
+        """The loss function.  If 1-D array is returned,
+        the mean of array is calculated.
+        Return 1-D array if possible in order to utilize weights in the dataset
+        if available.
 
         Parameters
         ----------
@@ -111,24 +115,46 @@ class TorchLossBase(LossBase, metaclass=ABCMeta):
 
     @classmethod
     @final
-    def from_function_torch(
+    def from_callable_torch(
         cls,
         loss: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
         name: str | None = None,
         is_higher_better: bool = False,
-    ) -> type["TorchLossBase"]:
-        if name is None and hasattr(loss, "__name__"):
-            name = getattr(loss, "__name__") + f"{cls.__name__}"
-        if (
-            name is None
-            and hasattr(loss, "__class__")
-            and hasattr(getattr(loss, "__class__"), "__name__")
-        ):
-            name = getattr(getattr(loss, "__class__"), "__name__") + f"{cls.__name__}"
-        if name is None or name == f"<lambda>{cls.__name__}":
-            raise ValueError(
-                "Could not infer name from loss function. Please specify name."
-            )
+    ) -> type[Self]:
+        """Create a loss class from a callable.
+
+        Parameters
+        ----------
+        loss : Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
+            The loss function.  If 1-D array is returned,
+            the mean of array is calculated.
+            Return 1-D array if possible in order to utilize weights in the dataset
+            if available.
+            (y_true, y_pred) -> loss
+        name : str | None, optional
+            The name of loss function.
+            If None, it tries to infer from loss function, by default None
+        is_higher_better : bool, optional
+            Whether the result of loss function is better when it is higher,
+            by default False
+
+        Returns
+        -------
+        type[Self]
+            The subclass of this class.
+
+        Raises
+        ------
+        ValueError
+            If name is None and it can't infer from loss function.
+        """
+        if name is None:
+            try:
+                name = _get_name_from_callable(loss)
+            except ValueError as e:
+                raise ValueError(
+                    "Could not infer name from loss function. Please specify name."
+                ) from e
         return type(
             name,
             (cls,),

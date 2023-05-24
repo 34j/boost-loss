@@ -34,6 +34,14 @@ def _dataset_to_ndarray(
     return y, np.ones_like(y)
 
 
+def _get_name_from_callable(obj: Callable[..., Any]) -> str:
+    if hasattr(obj, "__name__"):
+        return getattr(obj, "__name__")
+    if hasattr(obj, "__class__") and hasattr(getattr(obj, "__class__"), "__name__"):
+        return getattr(getattr(obj, "__class__"), "__name__")
+    raise ValueError(f"Could not get name from callable {obj}")
+
+
 class LossBase(metaclass=ABCMeta):
     """Base class for loss functions.
     Inherit this class to implement custom loss function.
@@ -55,26 +63,54 @@ class LossBase(metaclass=ABCMeta):
 
     @classmethod
     @final
-    def from_function(
+    def from_callable(
         cls,
-        loss: Callable[[NDArray, NDArray], NDArray],
+        loss: Callable[[NDArray, NDArray], NDArray | float],
         grad: Callable[[NDArray, NDArray], NDArray],
         hess: Callable[[NDArray, NDArray], NDArray],
         name: str | None = None,
         is_higher_better: bool = False,
-    ) -> type[LossBase]:
-        if name is None and hasattr(loss, "__name__"):
-            name = getattr(loss, "__name__") + f"{cls.__name__}"
-        if (
-            name is None
-            and hasattr(loss, "__class__")
-            and hasattr(getattr(loss, "__class__"), "__name__")
-        ):
-            name = getattr(getattr(loss, "__class__"), "__name__") + f"{cls.__name__}"
-        if name is None or name == f"<lambda>{cls.__name__}":
-            raise ValueError(
-                "Could not infer name from loss function. Please specify name."
-            )
+    ) -> type[Self]:
+        """Create this class from loss, grad, and hess callables.
+
+        Parameters
+        ----------
+        loss : Callable[[NDArray, NDArray], NDArray | float]
+            The loss function. If 1-D array is returned,
+            the mean of array is calculated.
+            Return 1-D array if possible in order to utilize weights in the dataset
+            if available.
+            (y_true, y_pred) -> loss
+        grad : Callable[[NDArray, NDArray], NDArray]
+            The 1st order derivative (gradient) of loss w.r.t. y_pred.
+            (y_true, y_pred) -> grad
+        hess : Callable[[NDArray, NDArray], NDArray]
+            The 2nd order derivative (Hessian) of loss w.r.t. y_pred.
+            (y_true, y_pred) -> hess
+        name : str | None, optional
+            The name of loss function.
+            If None, it tries to infer from loss function, by default None
+        is_higher_better : bool, optional
+            Whether the result of loss function is better when it is higher,
+            by default False
+
+        Returns
+        -------
+        type[Self]
+            The subclass of this class.
+
+        Raises
+        ------
+        ValueError
+            If name is None and it can't infer from loss function.
+        """
+        if name is None:
+            try:
+                name = _get_name_from_callable(loss)
+            except ValueError as e:
+                raise ValueError(
+                    "Could not infer name from loss function. Please specify name."
+                ) from e
         return type(
             name,
             (cls,),

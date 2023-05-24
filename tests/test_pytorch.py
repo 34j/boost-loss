@@ -6,7 +6,7 @@ from torch.nn.modules.loss import MSELoss
 
 from boost_loss._base import LossBase
 from boost_loss._pytorch import TorchLossBase, _LNLossTorch, _LNLossTorch_
-from boost_loss.regression import L2Loss
+from boost_loss.regression.regression import L2Loss
 
 from .test_base import assert_array_almost_equal
 
@@ -16,7 +16,7 @@ from .test_base import assert_array_almost_equal
     [
         (_LNLossTorch_(n=2, divide_n_loss=False), L2Loss(divide_n_grad=False)),
         (_LNLossTorch(n=2, divide_n_grad=True), L2Loss(divide_n_grad=True)),
-        (TorchLossBase.from_function_torch(MSELoss())(), L2Loss(divide_n_grad=False)),
+        (TorchLossBase.from_callable_torch(MSELoss())(), L2Loss(divide_n_grad=False)),
     ],
 )
 class TestLossTorch(TestCase):

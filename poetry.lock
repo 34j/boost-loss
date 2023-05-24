@@ -658,6 +658,22 @@ wheel = "*"
 dask = ["dask[array] (>=2.0.0)", "dask[dataframe] (>=2.0.0)", "dask[distributed] (>=2.0.0)", "pandas"]
 
 [[package]]
+name = "lightgbm-callbacks"
+version = "0.1.1"
+description = "A collection of LightGBM callbacks."
+optional = false
+python-versions = ">=3.8,<4.0"
+files = [
+    {file = "lightgbm_callbacks-0.1.1-py3-none-any.whl", hash = "sha256:d4520e38418e9d8fea992b2374dfa724e22ba3c0017ae05a63f8cac28ba92dfc"},
+    {file = "lightgbm_callbacks-0.1.1.tar.gz", hash = "sha256:154f1cb5bb1445f470352dee95dd3768dbe3107e3a9b2b7f549bbb9f15e66477"},
+]
+
+[package.dependencies]
+lightgbm = ">=3.3.5,<4.0.0"
+tqdm = ">=4.65.0,<5.0.0"
+typing-extensions = ">=4.5.0,<5.0.0"
+
+[[package]]
 name = "markdown-it-py"
 version = "2.2.0"
 description = "Python port of markdown-it. Markdown parsing, done right!"
@@ -1717,6 +1733,26 @@ typing-extensions = "*"
 opt-einsum = ["opt-einsum (>=3.3)"]
 
 [[package]]
+name = "tqdm"
+version = "4.65.0"
+description = "Fast, Extensible Progress Meter"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "tqdm-4.65.0-py3-none-any.whl", hash = "sha256:c4f53a17fe37e132815abceec022631be8ffe1b9381c2e6e30aa70edc99e9671"},
+    {file = "tqdm-4.65.0.tar.gz", hash = "sha256:1871fb68a86b8fb3b59ca4cdd3dcccbc7e6d613eeed31f4c332531977b89beb5"},
+]
+
+[package.dependencies]
+colorama = {version = "*", markers = "platform_system == \"Windows\""}
+
+[package.extras]
+dev = ["py-make (>=0.1.0)", "twine", "wheel"]
+notebook = ["ipywidgets (>=6)"]
+slack = ["slack-sdk"]
+telegram = ["requests"]
+
+[[package]]
 name = "typing-extensions"
 version = "4.5.0"
 description = "Backported and Experimental Type Hints for Python 3.7+"
@@ -1834,4 +1870,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "1a3f80d96a1920e9c6a401be2e286611c1e1199341088d19d43f9802f07b40da"
+content-hash = "de10fe9691f7a0477ea9fd3cef0beb4825038886ee0c2e1dbae9e0f3cca5d9d5"

@@ -11,7 +11,7 @@ from sklearn.datasets import load_diabetes
 from sklearn.model_selection import train_test_split
 
 from boost_loss._base import LossBase
-from boost_loss.regression import L2Loss
+from boost_loss.regression.regression import L2Loss
 
 
 def assert_array_almost_equal(a, b):
@@ -76,7 +76,7 @@ class TestBasic(TestBase):
         # https://catboost.ai/en/docs/concepts/python-usages-examples#user-defined-loss-function
         model = cb.CatBoostRegressor(
             loss_function=self.loss,
-            eval_metric="RMSE",
+            eval_metric=self.loss,
             iterations=100,
             learning_rate=0.1,
         )
@@ -94,7 +94,7 @@ class TestBasic(TestBase):
     def test_catboost_native(self):
         model = cb.CatBoostRegressor(
             loss_function=self.loss,
-            eval_metric="RMSE",
+            eval_metric=self.loss,
             iterations=100,
             learning_rate=0.1,
         )

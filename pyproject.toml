@@ -29,6 +29,7 @@ lightgbm = "^3.3.5"
 catboost = "^1.2"
 pyhumps = "^3.8.0"
 attrs = "^23.1.0"
+lightgbm-callbacks = "^0.1.1"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = ">=3"
