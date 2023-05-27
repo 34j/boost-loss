@@ -246,12 +246,14 @@ class LossBase(metaclass=ABCMeta):
     ) -> tuple[NDArray, NDArray]:
         grad, hess = self.grad_hess(y_true=y_true, y_pred=y_pred)
         if np.any(hess < 0):
+            negative_rate = np.mean(hess < 0)
             warnings.warn(
-                "Negative hessian detected. This should not happen. "
-                "Temporary set hessian to eps.",
+                f"Found negative hessian in {negative_rate:.2%} samples."
+                "This may cause convergence issue and cause CatBoostError in CatBoost."
+                "If LightGBM or XGBoost is used, the estimator will return "
+                "nonsense values (like all 0s if 100%).",
                 RuntimeWarning,
             )
-            hess = np.where(hess < 0, np.finfo(np.float32).eps, hess)
         grad, hess = grad * weight, hess * weight
         grad, hess = grad * self._grad_hess_sign, hess * self._grad_hess_sign
         return grad, hess
