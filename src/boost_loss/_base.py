@@ -241,6 +241,21 @@ class LossBase(metaclass=ABCMeta):
             y_true=y_true, y_pred=y_pred
         )
 
+    def _grad_hess_weighted(
+        self, y_true: NDArray, y_pred: NDArray, weight: NDArray
+    ) -> tuple[NDArray, NDArray]:
+        grad, hess = self.grad_hess(y_true=y_true, y_pred=y_pred)
+        if np.any(hess < 0):
+            warnings.warn(
+                "Negative hessian detected. This should not happen. "
+                "Temporary set hessian to eps.",
+                RuntimeWarning,
+            )
+            hess = np.where(hess < 0, np.finfo(np.float32).eps, hess)
+        grad, hess = grad * weight, hess * weight
+        grad, hess = grad * self._grad_hess_sign, hess * self._grad_hess_sign
+        return grad, hess
+
     @final
     def __call__(
         self,
@@ -253,10 +268,7 @@ class LossBase(metaclass=ABCMeta):
             y_true, y_pred = y_pred, y_true
         y_true, weight = _dataset_to_ndarray(y=y_true)
         y_pred, _ = _dataset_to_ndarray(y=y_pred)
-        grad, hess = self.grad_hess(y_true=y_true, y_pred=y_pred)
-        grad, hess = grad * weight, hess * weight
-        grad, hess = grad * self._grad_hess_sign, hess * self._grad_hess_sign
-        return grad, hess
+        return self._grad_hess_weighted(y_true=y_true, y_pred=y_pred, weight=weight)
 
     @final
     def calc_ders_range(
@@ -266,13 +278,14 @@ class LossBase(metaclass=ABCMeta):
         weights: Sequence[float] | None = None,
     ) -> list[tuple[float, float]]:
         """Catboost-compatible interface"""
-        preds_ = np.array(preds)
-        targets_ = np.array(targets)
-        weights_ = np.array(weights) if weights is not None else np.ones_like(preds_)
-        grad, hess = self.grad_hess(y_true=targets_, y_pred=preds_)
-        grad, hess = grad * weights_, hess * weights_
+        y_pred = np.array(preds)
+        y_true = np.array(targets)
+        weight = np.array(weights) if weights is not None else np.ones_like(y_pred)
+        grad, hess = self._grad_hess_weighted(
+            y_true=y_true, y_pred=y_pred, weight=weight
+        )
         # NOTE: in catboost, the definition of loss is the inverse
-        grad, hess = grad * -self._grad_hess_sign, hess * -self._grad_hess_sign
+        grad, hess = -grad, -hess
         return list(zip(grad, hess))
 
     @final
