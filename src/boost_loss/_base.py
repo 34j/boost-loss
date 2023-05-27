@@ -150,7 +150,7 @@ class LossBase(metaclass=ABCMeta):
         str
             Snake case of class name. e.g. `LogCoshLoss` -> `log_cosh_loss`.
         """
-        return humps.decamelize(self.__class__.__name__)
+        return humps.decamelize(self.__class__.__name__.replace("Loss", ""))
 
     def grad(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
         """The 1st order derivative (gradient) of loss w.r.t. y_pred.
@@ -375,6 +375,18 @@ class LossBase(metaclass=ABCMeta):
     def __div__(self, other: float | int | Real) -> LossBase:
         return self.__mul__(1.0 / other)
 
+    def __radd__(self, other: LossBase) -> LossBase:
+        return self.__add__(other)
+
+    def __rsub__(self, other: LossBase) -> LossBase:
+        return self.__sub__(other)
+
+    def __rmul__(self, other: float | int | Real) -> LossBase:
+        return self.__mul__(other)
+
+    def __rdiv__(self, other: float | int | Real) -> LossBase:
+        return self.__div__(other)
+
     def __neg__(self) -> LossBase:
         return self.__mul__(-1.0)
 
@@ -382,10 +394,14 @@ class LossBase(metaclass=ABCMeta):
         return self
 
 
-@attrs.frozen()
+@attrs.define()
 class _LossSum(LossBase):
     loss1: LossBase
     loss2: LossBase
+
+    @property
+    def name(self) -> str:
+        return self.loss1.name + "+" + self.loss2.name
 
     def loss(self, y_true: NDArray, y_pred: NDArray) -> NDArray | float:
         return self.loss1.loss(y_true=y_true, y_pred=y_pred) + self.loss2.loss(
@@ -408,10 +424,14 @@ class _LossSum(LossBase):
         return grad1 + grad2, hess1 + hess2
 
 
-@attrs.frozen()
+@attrs.define()
 class _LossMul(LossBase):
     loss_: LossBase
     factor: float | int | Real
+
+    @property
+    def name(self) -> str:
+        return f"{self.factor}*{self.loss_.name}"
 
     def loss(self, y_true: NDArray, y_pred: NDArray) -> NDArray | float:
         return self.factor * self.loss_.loss(y_true=y_true, y_pred=y_pred)
