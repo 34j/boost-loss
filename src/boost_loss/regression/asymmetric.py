@@ -9,13 +9,14 @@ from .regression import L1Loss, L2Loss
 @attrs.define()
 class AsymmetricCompositeLoss(LossBase):
     """Asymmetric composite loss function.
-    The loss function is loss_pred_less if y_true < y_pred, otherwise loss_pred_greater.
+    The loss function is `loss_pred_less` if `y_true < y_pred`,
+    otherwise `loss_pred_greater`.
     """
 
     loss_pred_less: LossBase
-    """The loss function if y_true < y_pred."""
+    """The loss function if `y_true < y_pred`."""
     loss_pred_greater: LossBase
-    """The loss function if y_true >= y_pred."""
+    """The loss function if `y_true >= y_pred`."""
 
     def loss(self, y_true: NDArray, y_pred: NDArray) -> float | NDArray:
         loss = np.where(
@@ -36,7 +37,7 @@ class AsymmetricCompositeLoss(LossBase):
 
 class AsymmetricLoss(AsymmetricCompositeLoss):
     """Asymmetric loss function.
-    The loss function is loss * (1 - t) if y_true < y_pred, otherwise loss * t.
+    The loss function is `loss * (1 - t)` if `y_true < y_pred`, otherwise `loss * t`.
     Generalized from quantile loss (pinball loss, check loss, etc.) and expectile loss.
     """
 
