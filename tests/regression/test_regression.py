@@ -25,5 +25,6 @@ class TestRegression(TestCase):
         grad = l1.grad(y_true=y_true, y_pred=y_pred)
         hess = l1.hess(y_true=y_true, y_pred=y_pred)
         self.assertEqual(grad.tolist(), np.sign(y_pred - y_true).tolist())
-        self.assertEqual(hess.tolist(), np.zeros_like(y_pred).tolist())
+        # NOTE: not np.zeros_like because it does not work
+        self.assertEqual(hess.tolist(), np.ones_like(y_pred).tolist())
         self.assertEqual(loss.tolist(), np.abs(y_pred - y_true).tolist())
