@@ -4,9 +4,9 @@ import numpy as np
 from parameterized import parameterized_class
 from torch.nn.modules.loss import MSELoss
 
-from boost_loss._base import LossBase
-from boost_loss._pytorch import TorchLossBase, _LNLossTorch, _LNLossTorch_
+from boost_loss.base import LossBase
 from boost_loss.regression.regression import L2Loss
+from boost_loss.torch import TorchLossBase, _LNLossTorch, _LNLossTorch_
 
 from .test_base import assert_array_almost_equal
 

@@ -7,7 +7,7 @@ import torch
 from numpy.typing import NDArray
 from typing_extensions import Self
 
-from ._base import LossBase, _get_name_from_callable
+from .base import LossBase, _get_name_from_callable
 
 
 class TorchLossBase(LossBase, metaclass=ABCMeta):

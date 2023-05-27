@@ -5,7 +5,7 @@ from typing import Sequence
 import numpy as np
 from numpy.typing import NDArray
 
-from ._base import LossBase
+from .base import LossBase
 
 
 class ResumingLoss(LossBase):

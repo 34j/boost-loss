@@ -2,7 +2,7 @@ import attrs
 import numpy as np
 from numpy.typing import NDArray
 
-from .._base import LossBase
+from ..base import LossBase
 from .regression import L1Loss, L2Loss
 
 

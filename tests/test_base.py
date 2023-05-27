@@ -13,9 +13,9 @@ from sklearn.datasets import load_diabetes
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
-from boost_loss._base import LossBase
-from boost_loss._sklearn import apply_custom_loss
+from boost_loss.base import LossBase
 from boost_loss.regression.regression import L2Loss, LogCoshLoss
+from boost_loss.sklearn import apply_custom_loss
 
 
 def assert_array_almost_equal(a, b):

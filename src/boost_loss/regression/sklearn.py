@@ -1,13 +1,23 @@
+from copy import copy
 from typing import Any, Literal, Sequence
 
 import numpy as np
-from joblib import Parallel
+from joblib import Parallel, delayed
 from numpy.typing import NDArray
-from sklearn.base import BaseEstimator, clone
+from sklearn.base import BaseEstimator
+from typing_extensions import Self
 
-from .._base import LossBase
-from .._sklearn import apply_custom_loss
+from ..base import LossBase
+from ..sklearn import apply_custom_loss
 from .asymmetric import AsymmetricLoss
+
+
+def _recursively_set_random_state(estimator: BaseEstimator, random_state: int) -> None:
+    if hasattr(estimator, "random_state") and hasattr(estimator, "set_params"):
+        estimator.set_params(random_state=random_state)
+    for _, v in copy(estimator.get_params(deep=False)).items():
+        if hasattr(v, "get_params"):
+            _recursively_set_random_state(v, random_state)
 
 
 class VarianceEstimator(BaseEstimator):
@@ -44,6 +54,7 @@ class VarianceEstimator(BaseEstimator):
         random_state: int | None = None,
         m_type: Literal["mean", "median"] = "median",
         var_type: Literal["var", "std", "range", "mae", "mse"] = "var",
+        target_transformer: BaseEstimator | Any | None = None,
     ) -> None:
         if not hasattr(estimator, "fit"):
             raise TypeError(f"{estimator} does not have fit method")
@@ -54,30 +65,37 @@ class VarianceEstimator(BaseEstimator):
         self.ts = ts
         self.n_jobs = n_jobs
         self.verbose = verbose
+        self.random_state = random_state
         self.m_type = m_type
         self.var_type = var_type
-        self.random_state = random_state
+        self.target_transformer = target_transformer
         self.random = np.random.RandomState(random_state)
 
-    def fit(self, X: Any, y: Any) -> None:
+    def fit(self, X: Any, y: Any, **fit_params: Any) -> Self:
         ts = self.ts
         if isinstance(ts, int):
             ts = np.linspace(1 / (ts * 2), 1 - 1 / (ts * 2), ts)
         self.ts_ = ts  # type: ignore
         estimators_ = [
-            apply_custom_loss(clone(self.estimator), AsymmetricLoss(self.loss, t=t))
+            apply_custom_loss(
+                self.estimator,
+                AsymmetricLoss(self.loss, t=t),
+                target_transformer=self.target_transformer,
+            )
             for t in self.ts_
         ]
-        estimators_ = [
-            estimator.set_params(random_state=self.random.randint(2**32))
-            for estimator in estimators_
-        ]
+        if self.random is not None:
+            for estimator in estimators_:
+                _recursively_set_random_state(
+                    estimator, self.random.randint(0, np.iinfo(np.int32).max)
+                )
         parallel_result = Parallel(n_jobs=self.n_jobs, verbose=self.verbose)(
-            [estimator.fit(X, y) for estimator in estimators_]
+            [delayed(estimator.fit)(X, y, **fit_params) for estimator in estimators_]
         )
         if parallel_result is None:
             raise RuntimeError("joblib.Parallel returned None")
-        self.estimators_ = estimators_
+        self.estimators_ = parallel_result
+        return self
 
     def predict_raw(self, X: Any, **predict_params: Any) -> NDArray[Any]:
         return np.array(

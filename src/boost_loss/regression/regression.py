@@ -4,7 +4,7 @@ import attrs
 import numpy as np
 from numpy.typing import NDArray
 
-from .._base import LossBase
+from ..base import LossBase
 
 LOG = getLogger(__name__)
 
