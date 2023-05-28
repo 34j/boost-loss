@@ -56,6 +56,24 @@ class LossBase(metaclass=ABCMeta):
 
     XGBoost:
     https://xgboost.readthedocs.io/en/latest/tutorials/custom_metric_obj.html
+
+    Example
+    -------
+    >>> from boost_loss.base import LossBase
+    >>> import numpy as np
+    >>> from numpy.typing import NDArray
+    >>>
+    >>> class L2Loss(LossBase):
+    >>>     def loss(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
+    >>>         return (y_true - y_pred) ** 2
+    >>>     def grad(self, y_true: NDArray, y_pred: NDArray) -> NDArray: # dL/dy_pred
+    >>>         return -2 * (y_true - y_pred) # or (y_pred - y_true)
+    >>>     def hess(self, y_true: NDArray, y_pred: NDArray) -> NDArray: # d2L/dy_pred2
+    >>>         return 2 * np.ones_like(y_true) # or np.ones_like(y_true)
+    >>>
+    >>> from boost.sklearn import apply_custom_loss
+    >>> import lightgbm as lgb
+    >>> apply_custom_loss(lgb.LGBMRegressor(), L2Loss()).fit(X, y)
     """
 
     is_higher_better: bool = False
