@@ -1,19 +1,23 @@
 import warnings
-from unittest import TestCase
+from unittest import SkipTest, TestCase
 
 import numpy as np
 from parameterized import parameterized_class
 
 from boost_loss.base import LossBase
 from boost_loss.regression.regression import L2Loss
-from boost_loss.torch import TorchLossBase, _LNLossTorch, _LNLossTorch_
+
+try:
+    from boost_loss.torch import TorchLossBase, _LNLossTorch, _LNLossTorch_
+except ValueError as e:
+    raise SkipTest(f"Failed to import TorchLossBase from PyTorch. Skip the test. {e}")
+else:
+    PARAMETERS = [
+        (_LNLossTorch_(n=2, divide_n_loss=False), L2Loss(divide_n_grad=False)),
+        (_LNLossTorch(n=2, divide_n_grad=True), L2Loss(divide_n_grad=True)),
+    ]
 
 from .test_base import assert_array_almost_equal
-
-PARAMETERS = [
-    (_LNLossTorch_(n=2, divide_n_loss=False), L2Loss(divide_n_grad=False)),
-    (_LNLossTorch(n=2, divide_n_grad=True), L2Loss(divide_n_grad=True)),
-]
 
 try:
     from torch.nn.modules.loss import MSELoss
