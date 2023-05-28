@@ -149,7 +149,7 @@ class VarianceEstimator(BaseEstimator):
                 self.estimator,
                 AsymmetricLoss(self.loss, t=t),
                 target_transformer=self.target_transformer,
-            )  # type: ignore
+            )
             for t in self.ts_
         ]
         if self.random is not None:
