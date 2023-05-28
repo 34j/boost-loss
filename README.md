@@ -30,7 +30,7 @@
   <img src="https://img.shields.io/pypi/l/boost-loss.svg?style=flat-square" alt="License">
 </p>
 
-Utilities for easy use of custom losses in CatBoost, LightGBM, XGBoost
+Utilities for easy use of custom losses in CatBoost, LightGBM, XGBoost. This sounds very simple, but in reality it took a lot of work.
 
 ## Installation
 
