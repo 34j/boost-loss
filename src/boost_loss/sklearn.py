@@ -23,9 +23,9 @@ def apply_custom_loss(
     estimator: TEstimator,
     loss: LossBase,
     *,
-    copy: bool,
-    target_transformer: None,
-    recursive: bool,
+    copy: bool = ...,
+    target_transformer: None = ...,
+    recursive: bool = ...,
 ) -> TEstimator:
     ...
 
@@ -35,9 +35,9 @@ def apply_custom_loss(
     estimator: TEstimator,
     loss: LossBase,
     *,
-    copy: bool,
-    target_transformer: BaseEstimator,
-    recursive: bool,
+    copy: bool = ...,
+    target_transformer: BaseEstimator = ...,
+    recursive: bool = ...,
 ) -> TransformedTargetRegressor:
     ...
 
@@ -97,7 +97,7 @@ def apply_custom_loss(
                     **{
                         key: apply_custom_loss(
                             value, loss, copy=False, target_transformer=None
-                        )  # type: ignore
+                        )
                     }
                 )
 
