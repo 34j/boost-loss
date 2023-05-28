@@ -1,8 +1,8 @@
+import warnings
 from unittest import TestCase
 
 import numpy as np
 from parameterized import parameterized_class
-from torch.nn.modules.loss import MSELoss
 
 from boost_loss.base import LossBase
 from boost_loss.regression.regression import L2Loss
@@ -10,15 +10,22 @@ from boost_loss.torch import TorchLossBase, _LNLossTorch, _LNLossTorch_
 
 from .test_base import assert_array_almost_equal
 
+PARAMETERS = [
+    (_LNLossTorch_(n=2, divide_n_loss=False), L2Loss(divide_n_grad=False)),
+    (_LNLossTorch(n=2, divide_n_grad=True), L2Loss(divide_n_grad=True)),
+]
 
-@parameterized_class(
-    ("loss_torch", "loss_base"),
-    [
-        (_LNLossTorch_(n=2, divide_n_loss=False), L2Loss(divide_n_grad=False)),
-        (_LNLossTorch(n=2, divide_n_grad=True), L2Loss(divide_n_grad=True)),
-        (TorchLossBase.from_callable_torch(MSELoss())(), L2Loss(divide_n_grad=False)),
-    ],
-)
+try:
+    from torch.nn.modules.loss import MSELoss
+
+    PARAMETERS.append(
+        (TorchLossBase.from_callable_torch(MSELoss())(), L2Loss(divide_n_grad=False))
+    )
+except ValueError as e:
+    warnings.warn(f"Failed to import MSELoss from PyTorch. Skip the test. {e}")
+
+
+@parameterized_class(("loss_torch", "loss_base"), PARAMETERS)
 class TestLossTorch(TestCase):
     loss_torch: TorchLossBase
     loss_base: LossBase
