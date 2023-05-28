@@ -12,6 +12,8 @@ LOG = getLogger(__name__)
 
 @attrs.define()
 class DebugLoss(LossBase):
+    """Calls LOG.debug() every time loss() or grad_hess() is called."""
+
     loss_: LossBase
 
     def loss(self, y_true: NDArray, y_pred: NDArray) -> float | NDArray:
@@ -27,6 +29,8 @@ class DebugLoss(LossBase):
 
 @attrs.define()
 class PrintLoss(LossBase):
+    """Prints every time loss() or grad_hess() is called."""
+
     loss_: LossBase
 
     def loss(self, y_true: NDArray, y_pred: NDArray) -> float | NDArray:

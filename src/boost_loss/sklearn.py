@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import functools
 import importlib.util
-from typing import Any, Literal, TypeVar
+from typing import Any, Literal, TypeVar, overload
 from unittest.mock import patch
 
 import catboost as cb
@@ -18,6 +18,30 @@ from .base import LossBase
 TEstimator = TypeVar("TEstimator", cb.CatBoost, lgb.LGBMModel, xgb.XGBModel)
 
 
+@overload
+def apply_custom_loss(
+    estimator: TEstimator,
+    loss: LossBase,
+    *,
+    copy: bool,
+    target_transformer: None,
+    recursive: bool,
+) -> TEstimator:
+    ...
+
+
+@overload
+def apply_custom_loss(
+    estimator: TEstimator,
+    loss: LossBase,
+    *,
+    copy: bool,
+    target_transformer: BaseEstimator,
+    recursive: bool,
+) -> TransformedTargetRegressor:
+    ...
+
+
 def apply_custom_loss(
     estimator: TEstimator,
     loss: LossBase,
@@ -26,6 +50,29 @@ def apply_custom_loss(
     target_transformer: BaseEstimator | Any | None = StandardScaler(),
     recursive: bool = True,
 ) -> TEstimator | TransformedTargetRegressor:
+    """Apply custom loss to the estimator.
+
+    Parameters
+    ----------
+    estimator : TEstimator
+        CatBoost, LGBMModel, or XGBModel
+    loss : LossBase
+        The custom loss to apply
+    copy : bool, optional
+        Whether to copy the estimator using `sklearn.base.clone`, by default True
+    target_transformer : BaseEstimator | Any | None, optional
+        The target transformer to use, by default StandardScaler()
+        (This option exists because some loss functions require the target
+        to be normalized (i.e. `LogCoshLoss`))
+    recursive : bool, optional
+        Whether to recursively search for estimators inside the estimator
+        and apply the custom loss to all of them, by default True
+
+    Returns
+    -------
+    TEstimator | TransformedTargetRegressor
+        The estimator with the custom loss applied
+    """
     if copy:
         estimator = clone(estimator)
     if isinstance(estimator, cb.CatBoost):
@@ -50,7 +97,7 @@ def apply_custom_loss(
                     **{
                         key: apply_custom_loss(
                             value, loss, copy=False, target_transformer=None
-                        )
+                        )  # type: ignore
                     }
                 )
 
