@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import functools
 import importlib.util
 from typing import Any, Literal, TypeVar
