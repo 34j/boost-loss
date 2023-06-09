@@ -112,6 +112,20 @@ if importlib.util.find_spec("ngboost") is not None:
     from numpy.typing import NDArray
 
     def patch_ngboost(estimator: NGBoost) -> NGBoost:
+        """Patch NGBoost to return only the mean prediction in `predict`
+        and the variance in `predict_var` to be consistent with other models.
+
+        Parameters
+        ----------
+        estimator : NGBoost
+            The NGBoost estimator to patch.
+
+        Returns
+        -------
+        NGBoost
+            The patched NGBoost estimator.
+        """
+
         def predict_var(self: NGBoost, X: Any, **predict_params: Any) -> NDArray[Any]:
             dist = self.pred_dist(X, **predict_params)
             if not isinstance(dist, Normal):
@@ -133,6 +147,48 @@ if importlib.util.find_spec("ngboost") is not None:
 
 
 def patch_catboost(estimator: cb.CatBoost) -> cb.CatBoost:
+    """Patch CatBoost to return only the mean prediction in `predict`
+    and the variance in `predict_var` to be consistent with other models.
+
+    Parameters
+    ----------
+    estimator : cb.CatBoost
+        The CatBoost estimator to patch.
+
+    Returns
+    -------
+    cb.CatBoost
+        The patched CatBoost estimator.
+    """
+    original_predict = estimator.predict
+
+    def predict(
+        self: cb.CatBoost,
+        data: Any,
+        prediction_type: Literal[
+            "Probability", "Class", "RawFormulaVal", "Exponent", "LogProbability"
+        ] = "RawFormulaVal",
+        ntree_start: int = 0,
+        ntree_end: int = 0,
+        thread_count: int = -1,
+        verbose: bool | None = None,
+        task_type: str = "CPU",
+    ) -> NDArray[Any]:
+        prediction = original_predict(
+            data,
+            prediction_type,
+            ntree_start,
+            ntree_end,
+            thread_count,
+            verbose,
+            task_type,
+        )
+        if prediction.ndim == 2:
+            return prediction[:, 0]
+        return prediction
+
+    setattr(estimator.__class__, "predict", predict)
+
     def predict_var(
         self: cb.CatBoost,
         X: Any,
