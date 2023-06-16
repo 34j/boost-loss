@@ -126,23 +126,23 @@ if importlib.util.find_spec("ngboost") is not None:
             The patched NGBoost estimator.
         """
 
-        def predict_var(self: NGBoost, X: Any, **predict_params: Any) -> NDArray[Any]:
+        self = estimator
+
+        def predict_var(X: Any, **predict_params: Any) -> NDArray[Any]:
             dist = self.pred_dist(X, **predict_params)
             if not isinstance(dist, Normal):
                 raise NotImplementedError
             return dist.var
 
-        setattr(estimator.__class__, "predict_var", predict_var)
-        # patch.object(estimator, "predict_var", predict_var).__enter__()
+        setattr(estimator, "predict_var", predict_var)
 
-        def predict_std(self: NGBoost, X: Any, **predict_params: Any) -> NDArray[Any]:
+        def predict_std(X: Any, **predict_params: Any) -> NDArray[Any]:
             dist = self.pred_dist(X, **predict_params)
             if not isinstance(dist, Normal):
                 raise NotImplementedError
             return dist.scale
 
-        setattr(estimator.__class__, "predict_std", predict_std)
-        # patch.object(estimator, "predict_std", predict_std).__enter__()
+        setattr(estimator, "predict_std", predict_std)
         return estimator
 
 
@@ -163,7 +163,6 @@ def patch_catboost(estimator: cb.CatBoost) -> cb.CatBoost:
     original_predict = estimator.predict
 
     def predict(
-        self: cb.CatBoost,
         data: Any,
         prediction_type: Literal[
             "Probability", "Class", "RawFormulaVal", "Exponent", "LogProbability"
@@ -187,10 +186,11 @@ def patch_catboost(estimator: cb.CatBoost) -> cb.CatBoost:
             return prediction[:, 0]
         return prediction
 
-    setattr(estimator.__class__, "predict", predict)
+    setattr(estimator, "predict", predict)
+
+    self = estimator
 
     def predict_var(
-        self: cb.CatBoost,
         X: Any,
         prediction_type: Literal["knowledge", "data", "total"] = "total",
         **predict_params: Any,
@@ -223,5 +223,5 @@ def patch_catboost(estimator: cb.CatBoost) -> cb.CatBoost:
                 f"but got {prediction_type}"
             )
 
-    setattr(estimator.__class__, "predict_var", predict_var)
+    setattr(estimator, "predict_var", predict_var)
     return estimator
