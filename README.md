@@ -116,5 +116,5 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 
 This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!
 
-[^bokbokbok]: [orchardbirds/bokbokbok](https://github.com/orchardbirds/bokbokbok)
-[^autograd]: [TomerRonen34/treeboost_autograd](https://github.com/TomerRonen34/treeboost_autograd)
+[^bokbokbok]: Inspired by [orchardbirds/bokbokbok](https://github.com/orchardbirds/bokbokbok)
+[^autograd]: Inspired by [TomerRonen34/treeboost_autograd](https://github.com/TomerRonen34/treeboost_autograd)
