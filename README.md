@@ -73,14 +73,15 @@ X, y = load_boston(return_X_y=True)
 apply_custom_loss(lgb.LGBMRegressor(), L2Loss()).fit(X, y)
 ```
 
+Built-in losses are available.
+
 ```python
-from boost_loss.regression import LogCoshLoss # built-in loss, inspired by [orchardbirds/bokbokbok: Custom Loss Functions and Evaluation Metrics for XGBoost and LightGBM](https://github.com/orchardbirds/bokbokbok)
+from boost_loss.regression import LogCoshLoss
+# Inspired by [orchardbirds/bokbokbok](https://github.com/orchardbirds/bokbokbok)
 ...
 ```
 
-### Torch AutoGrad Loss
-
-Inspired by [TomerRonen34/treeboost_autograd](https://github.com/TomerRonen34/treeboost_autograd)
+### [`torch.autograd`](https://pytorch.org/docs/stable/autograd.html) Loss
 
 ```python
 import torch
@@ -89,6 +90,7 @@ from boost_loss.torch import TorchLossBase
 
 
 class L2LossTorch(TorchLossBase):
+    # Inspired by [TomerRonen34/treeboost_autograd](https://github.com/TomerRonen34/treeboost_autograd)
     def loss_torch(self, y_true: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
         return (y_true - y_pred) ** 2 / 2
 ```
