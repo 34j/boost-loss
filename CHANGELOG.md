@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.2.0 (2023-06-17)
+
+### Feature
+
+* **sklearn:** Add utility function `patch()` ([#24](https://github.com/34j/boost-loss/issues/24)) ([`4436256`](https://github.com/34j/boost-loss/commit/4436256cbc1be66daa2e4dfadccc4325c7b5fc7c))
+
 ## v0.1.1 (2023-06-16)
 
 ### Fix
