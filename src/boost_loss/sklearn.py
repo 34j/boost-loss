@@ -3,7 +3,6 @@ from __future__ import annotations
 import functools
 import importlib.util
 from typing import Any, Literal, TypeVar, overload
-from unittest.mock import patch
 
 import catboost as cb
 import lightgbm as lgb
@@ -81,12 +80,14 @@ def apply_custom_loss(
         estimator.set_params(objective=loss)
         estimator_fit = estimator.fit
 
+        self = estimator
+
         @functools.wraps(estimator_fit)
-        def fit(self: lgb.LGBMModel, X: Any, y: Any, **fit_params: Any) -> Any:
+        def fit(X: Any, y: Any, **fit_params: Any) -> Any:
             fit_params["eval_metric"] = loss.eval_metric_lgb
             return estimator_fit(self, X, y, **fit_params)
 
-        patch.object(estimator, "fit", fit)
+        setattr(estimator, "fit", fit)
     if isinstance(estimator, xgb.XGBModel):
         estimator.set_params(objective=loss, eval_metric=loss.eval_metric_xgb_sklearn)
 
@@ -114,6 +115,8 @@ if importlib.util.find_spec("ngboost") is not None:
     def patch_ngboost(estimator: NGBoost) -> NGBoost:
         """Patch NGBoost to return only the mean prediction in `predict`
         and the variance in `predict_var` to be consistent with other models.
+        The patch will not apply if the estimator is cloned using `sklearn.base.clone()`
+        and requires re-patching.
 
         Parameters
         ----------
@@ -149,6 +152,8 @@ if importlib.util.find_spec("ngboost") is not None:
 def patch_catboost(estimator: cb.CatBoost) -> cb.CatBoost:
     """Patch CatBoost to return only the mean prediction in `predict`
     and the variance in `predict_var` to be consistent with other models.
+    The patch will not apply if the estimator is cloned using `sklearn.base.clone()`
+    and requires re-patching.
 
     Parameters
     ----------
@@ -162,6 +167,7 @@ def patch_catboost(estimator: cb.CatBoost) -> cb.CatBoost:
     """
     original_predict = estimator.predict
 
+    @functools.wraps(original_predict)
     def predict(
         data: Any,
         prediction_type: Literal[
@@ -224,4 +230,41 @@ def patch_catboost(estimator: cb.CatBoost) -> cb.CatBoost:
             )
 
     setattr(estimator, "predict_var", predict_var)
+    return estimator
+
+
+TAny = TypeVar("TAny")
+
+
+def patch(estimator: TAny, *, copy: bool = True, recursive: bool = True) -> TAny:
+    """Patch estimator if it is supported. (`patch_ngboost` and `patch_catboost`.)
+    The patch will not apply if the estimator is cloned using `sklearn.base.clone()`
+    and requires re-patching.
+
+    Parameters
+    ----------
+    estimator : TAny
+        The estimator to patch.
+    copy : bool, optional
+        Whether to copy the estimator before patching, by default True
+    recursive : bool, optional
+        Whether to recursively patch the estimator, by default True
+
+    Returns
+    -------
+    TAny
+        The patched estimator.
+    """
+    if copy:
+        estimator = clone(estimator)
+    if importlib.util.find_spec("ngboost") is not None:
+        if isinstance(estimator, NGBoost):
+            return patch_ngboost(estimator)
+    if isinstance(estimator, cb.CatBoost):
+        return patch_catboost(estimator)
+
+    if recursive and hasattr(estimator, "get_params"):
+        for _, value in estimator.get_params(deep=True).items():
+            patch(value, copy=False, recursive=False)
+
     return estimator
