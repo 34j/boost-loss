@@ -80,12 +80,10 @@ def apply_custom_loss(
         estimator.set_params(objective=loss)
         estimator_fit = estimator.fit
 
-        self = estimator
-
         @functools.wraps(estimator_fit)
         def fit(X: Any, y: Any, **fit_params: Any) -> Any:
             fit_params["eval_metric"] = loss.eval_metric_lgb
-            return estimator_fit(self, X, y, **fit_params)
+            return estimator_fit(X, y, **fit_params)
 
         setattr(estimator, "fit", fit)
     if isinstance(estimator, xgb.XGBModel):
