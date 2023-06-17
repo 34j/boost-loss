@@ -40,6 +40,58 @@ Install this via pip (or your favourite package manager):
 pip install boost-loss
 ```
 
+## Usage
+
+### Basic Usage
+
+```python
+import numpy as np
+
+from boost_loss import LossBase
+from numpy.typing import NDArray
+
+
+class L2Loss(LossBase):
+    def loss(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
+        return (y_true - y_pred) ** 2 / 2
+
+    def grad(self, y_true: NDArray, y_pred: NDArray) -> NDArray: # dL/dy_pred
+        return - (y_true - y_pred)
+
+    def hess(self, y_true: NDArray, y_pred: NDArray) -> NDArray: # d^2L/dy_pred^2
+        return np.ones_like(y_true)
+```
+
+```python
+import lightgbm as lgb
+
+from boost_loss import apply_custom_loss
+from sklearn.datasets import load_boston
+
+
+X, y = load_boston(return_X_y=True)
+apply_custom_loss(lgb.LGBMRegressor(), L2Loss()).fit(X, y)
+```
+
+Built-in losses are available. [^bokbokbok]
+
+```python
+from boost_loss.regression import LogCoshLoss
+```
+
+### [`torch.autograd`](https://pytorch.org/docs/stable/autograd.html) Loss [^autograd]
+
+```python
+import torch
+
+from boost_loss.torch import TorchLossBase
+
+
+class L2LossTorch(TorchLossBase):
+    def loss_torch(self, y_true: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
+        return (y_true - y_pred) ** 2 / 2
+```
+
 ## Contributors ✨
 
 Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
@@ -63,3 +115,6 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 <!-- prettier-ignore-end -->
 
 This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!
+
+[^bokbokbok]: Inspired by [orchardbirds/bokbokbok](https://github.com/orchardbirds/bokbokbok)
+[^autograd]: Inspired by [TomerRonen34/treeboost_autograd](https://github.com/TomerRonen34/treeboost_autograd)
