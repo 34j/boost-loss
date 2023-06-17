@@ -73,15 +73,13 @@ X, y = load_boston(return_X_y=True)
 apply_custom_loss(lgb.LGBMRegressor(), L2Loss()).fit(X, y)
 ```
 
-Built-in losses are available.
+Built-in losses are available. [^bokbokbok]
 
 ```python
 from boost_loss.regression import LogCoshLoss
-# Inspired by [orchardbirds/bokbokbok](https://github.com/orchardbirds/bokbokbok)
-...
 ```
 
-### [`torch.autograd`](https://pytorch.org/docs/stable/autograd.html) Loss
+### [`torch.autograd`](https://pytorch.org/docs/stable/autograd.html) Loss [^autograd]
 
 ```python
 import torch
@@ -90,7 +88,6 @@ from boost_loss.torch import TorchLossBase
 
 
 class L2LossTorch(TorchLossBase):
-    # Inspired by [TomerRonen34/treeboost_autograd](https://github.com/TomerRonen34/treeboost_autograd)
     def loss_torch(self, y_true: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
         return (y_true - y_pred) ** 2 / 2
 ```
@@ -118,3 +115,6 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 <!-- prettier-ignore-end -->
 
 This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!
+
+[^bokbokbok]: [orchardbirds/bokbokbok](https://github.com/orchardbirds/bokbokbok)
+[^autograd]: [TomerRonen34/treeboost_autograd](https://github.com/TomerRonen34/treeboost_autograd)
