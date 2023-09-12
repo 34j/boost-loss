@@ -24,7 +24,7 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.8"
-xgboost = "^1.7.5"
+xgboost = "^2.0.0"
 lightgbm = "^3.3.5"
 catboost = "^1.2"
 pyhumps = "^3.8.0"
