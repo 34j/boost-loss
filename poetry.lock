@@ -659,13 +659,13 @@ dask = ["dask[array] (>=2.0.0)", "dask[dataframe] (>=2.0.0)", "dask[distributed]
 
 [[package]]
 name = "lightgbm-callbacks"
-version = "0.1.1"
+version = "0.1.2"
 description = "A collection of LightGBM callbacks."
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "lightgbm_callbacks-0.1.1-py3-none-any.whl", hash = "sha256:d4520e38418e9d8fea992b2374dfa724e22ba3c0017ae05a63f8cac28ba92dfc"},
-    {file = "lightgbm_callbacks-0.1.1.tar.gz", hash = "sha256:154f1cb5bb1445f470352dee95dd3768dbe3107e3a9b2b7f549bbb9f15e66477"},
+    {file = "lightgbm_callbacks-0.1.2-py3-none-any.whl", hash = "sha256:ceed3e4a55064d071b3a955d615a625a107d23c0102234e49293373b43322be8"},
+    {file = "lightgbm_callbacks-0.1.2.tar.gz", hash = "sha256:d5a57fa25e6b880a333de753c127730d5672e4a9f38b1fea259bd08a30c1f076"},
 ]
 
 [package.dependencies]
