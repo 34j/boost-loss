@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.2.2 (2023-09-18)
+
+### Fix
+
+* **deps:** Update dependency catboost to v1.2.1 ([#58](https://github.com/34j/boost-loss/issues/58)) ([`61159e2`](https://github.com/34j/boost-loss/commit/61159e2b4ad444c8f045c2f5c83ac9eb3531f178))
+
 ## v0.2.1 (2023-09-18)
 
 ### Fix
