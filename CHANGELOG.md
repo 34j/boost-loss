@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.2.1 (2023-09-18)
+
+### Fix
+
+* **deps:** Update dependency lightgbm-callbacks to v0.1.2 ([#74](https://github.com/34j/boost-loss/issues/74)) ([`7871101`](https://github.com/34j/boost-loss/commit/7871101b6552e4a0395883197e3d9207951ef8e2))
+
 ## v0.2.0 (2023-06-17)
 
 ### Feature
