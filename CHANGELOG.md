@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.3.0 (2023-10-11)
+
+### Feature
+
+* **sklearn:** Add `recursive_strict` parameter to `patch()` ([#86](https://github.com/34j/boost-loss/issues/86)) ([`677e40f`](https://github.com/34j/boost-loss/commit/677e40f29136365e96c8aa22f50e53d64562d92a))
+
 ## v0.2.2 (2023-09-18)
 
 ### Fix
