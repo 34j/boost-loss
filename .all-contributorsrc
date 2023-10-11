@@ -3,9 +3,7 @@
   "projectOwner": "34j",
   "repoType": "github",
   "repoHost": "https://github.com",
-  "files": [
-    "README.md"
-  ],
+  "files": ["README.md"],
   "imageSize": 80,
   "commit": true,
   "commitConvention": "angular",
@@ -15,11 +13,7 @@
       "name": "34j",
       "avatar_url": "https://avatars.githubusercontent.com/u/55338215?v=4",
       "profile": "https://github.com/34j",
-      "contributions": [
-        "code",
-        "ideas",
-        "doc"
-      ]
+      "contributions": ["code", "ideas", "doc"]
     }
   ],
   "contributorsPerLine": 7,
