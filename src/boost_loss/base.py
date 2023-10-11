@@ -30,7 +30,10 @@ def _dataset_to_ndarray(
         return y_, weight
     if isinstance(y, xgb.DMatrix):
         y_ = y.get_label()
-        return y_, np.ones_like(y_)
+        weight = y.get_weight()
+        if weight is None or weight.size == 0:
+            weight = np.ones_like(y_)
+        return y_, weight
     return y, np.ones_like(y)
 
 
@@ -340,12 +343,16 @@ class LossBase(metaclass=ABCMeta):
         self,
         y_true: NDArray | lgb.Dataset | xgb.DMatrix,
         y_pred: NDArray | lgb.Dataset | xgb.DMatrix,
+        sample_weight: NDArray | lgb.Dataset | xgb.DMatrix | None = None
+        # not used, exists for eval_metric_xgb_sklearn
     ) -> tuple[str, float, bool]:
         """LightGBM-compatible interface"""
         if isinstance(y_pred, lgb.Dataset) or isinstance(y_pred, xgb.DMatrix):
             # NOTE: swap (it is so fucking that the order is inconsistent)
             y_true, y_pred = y_pred, y_true
         y_true, weight = _dataset_to_ndarray(y=y_true)
+        if sample_weight is not None:
+            weight = sample_weight
         y_pred, _ = _dataset_to_ndarray(y=y_pred)
         loss = self.loss(y_true=y_true, y_pred=y_pred)
         if isinstance(loss, float) and not np.allclose(weight, 1.0):
@@ -372,9 +379,12 @@ class LossBase(metaclass=ABCMeta):
         self,
         y_true: NDArray | lgb.Dataset | xgb.DMatrix,
         y_pred: NDArray | lgb.Dataset | xgb.DMatrix,
+        sample_weight: NDArray | lgb.Dataset | xgb.DMatrix | None = None,
     ) -> float:
         """XGBoost-sklearn-api-compatible interface"""
-        result = self.eval_metric_lgb(y_true=y_true, y_pred=y_pred)
+        result = self.eval_metric_lgb(
+            y_true=y_true, y_pred=y_pred, sample_weight=sample_weight
+        )
         return result[1]
 
     def __add__(self, other: LossBase) -> LossBase:
