@@ -48,6 +48,7 @@ def apply_custom_loss(
     copy: bool = True,
     target_transformer: BaseEstimator | Any | None = StandardScaler(),
     recursive: bool = True,
+    recursive_strict: bool = False,
 ) -> TEstimator | TransformedTargetRegressor:
     """Apply custom loss to the estimator.
 
@@ -234,7 +235,13 @@ def patch_catboost(estimator: cb.CatBoost) -> cb.CatBoost:
 TAny = TypeVar("TAny")
 
 
-def patch(estimator: TAny, *, copy: bool = True, recursive: bool = True) -> TAny:
+def patch(
+    estimator: TAny,
+    *,
+    copy: bool = True,
+    recursive: bool = True,
+    recursive_strict: bool = False,
+) -> TAny:
     """Patch estimator if it is supported. (`patch_ngboost` and `patch_catboost`.)
     The patch will not apply if the estimator is cloned using `sklearn.base.clone()`
     and requires re-patching.
@@ -247,12 +254,17 @@ def patch(estimator: TAny, *, copy: bool = True, recursive: bool = True) -> TAny
         Whether to copy the estimator before patching, by default True
     recursive : bool, optional
         Whether to recursively patch the estimator, by default True
+    recursive_strict : bool, optional
+        Whether to recursively patch the estimator's attributes,
+        lists, tuples, sets, and frozensets as well, by default False
 
     Returns
     -------
     TAny
         The patched estimator.
     """
+    if recursive_strict and not recursive:
+        raise ValueError("recursive_strict requires recursive=True")
     if copy:
         estimator = clone(estimator)
     if importlib.util.find_spec("ngboost") is not None:
@@ -263,6 +275,14 @@ def patch(estimator: TAny, *, copy: bool = True, recursive: bool = True) -> TAny
 
     if recursive and hasattr(estimator, "get_params"):
         for _, value in estimator.get_params(deep=True).items():
-            patch(value, copy=False, recursive=False)
+            patch(value, copy=False, recursive=False, recursive_strict=recursive_strict)
+    if recursive_strict:
+        if hasattr(estimator, "__dict__"):
+            for _, value in estimator.__dict__.items():
+                patch(value, copy=False, recursive=True, recursive_strict=True)
+        elif isinstance(estimator, (list, tuple, set, frozenset)):
+            # https://github.com/scikit-learn/scikit-learn/blob/364c77e047ca08a95862becf40a04fe9d4cd2c98/sklearn/base.py#L66
+            for value in estimator:
+                patch(value, copy=False, recursive=True, recursive_strict=True)
 
     return estimator
