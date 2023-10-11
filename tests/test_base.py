@@ -98,6 +98,7 @@ class TestBase(TestCase):
             raise SkipTest(f"XGBoost does not support {self.loss_name} loss.")
         model = xgb.XGBRegressor(
             objective=self.loss_names["xgboost"][self.loss_name],
+            base_score=0.5,
         )
         model.fit(
             self.X_train,
