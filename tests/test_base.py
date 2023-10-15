@@ -191,10 +191,10 @@ class TestBasic(TestBase):
         train_set = lgb.Dataset(self.X_train, self.y_train)
         test_set = lgb.Dataset(self.X_test, self.y_test)
         booster = lgb.train(
-            {"seed": self.seed},
+            {"seed": self.seed, "objective": self.loss},
             train_set=train_set,
             valid_sets=[train_set, test_set],
-            fobj=self.loss,
+            # fobj=self.loss,
             feval=self.loss.eval_metric_lgb,
         )
         self.y_pred = booster.predict(self.X_test)
@@ -315,10 +315,10 @@ class TestWeighted(TestBase):
         train_set = lgb.Dataset(self.X_train, self.y_train, weight=self.w_train)
         test_set = lgb.Dataset(self.X_test, self.y_test, weight=self.w_test)
         booster = lgb.train(
-            {"seed": self.seed},
+            {"seed": self.seed, "objective": self.loss},
             train_set=train_set,
             valid_sets=[train_set, test_set],
-            fobj=self.loss,
+            # fobj=self.loss,
             feval=self.loss.eval_metric_lgb,
         )
         self.y_pred = booster.predict(self.X_test)
