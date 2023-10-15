@@ -1,4 +1,4 @@
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 from .base import LossBase
 from .debug import DebugLoss, PrintLoss
 from .resuming import ResumingLoss

@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.3.3 (2023-10-15)
+
+### Fix
+
+* **deps:** Update dependency lightgbm to v4 ([#40](https://github.com/34j/boost-loss/issues/40)) ([`adb35ed`](https://github.com/34j/boost-loss/commit/adb35ed53f2eea7de53996f07e6d6ac043727f41))
+
 ## v0.3.2 (2023-10-11)
 
 ### Fix
