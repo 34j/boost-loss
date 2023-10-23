@@ -693,13 +693,13 @@ scikit-learn = ["scikit-learn (!=0.22.0)"]
 
 [[package]]
 name = "lightgbm-callbacks"
-version = "0.1.4"
+version = "0.1.5"
 description = "A collection of LightGBM callbacks."
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "lightgbm_callbacks-0.1.4-py3-none-any.whl", hash = "sha256:1ed7d38389b0ab73e504478269df2fc2caf8a4f0f7eaddde5ee6e7cb76698f3f"},
-    {file = "lightgbm_callbacks-0.1.4.tar.gz", hash = "sha256:eeabd87a05c7302f19e95d5696139197aeb44dd28cdc4769e1cda2ffdf4c2f52"},
+    {file = "lightgbm_callbacks-0.1.5-py3-none-any.whl", hash = "sha256:e177e6b7d75f688adf6a349b493c5b373b59da708c468f6fe687d1b71b8cf0ce"},
+    {file = "lightgbm_callbacks-0.1.5.tar.gz", hash = "sha256:762f53b7eed2c426fbaffb6eaf802f98c6e7125759b638714ec3b8a2c5c6a86f"},
 ]
 
 [package.dependencies]
