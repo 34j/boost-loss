@@ -189,6 +189,7 @@ class VarianceEstimator(BaseEstimator):
         X: Any,
         type_: Literal["mean", "median", "var", "std", "range", "mae", "mse"]
         | None = None,
+        return_std: bool = False,
         **predict_params: Any,
     ) -> NDArray[Any]:
         """Returns predictions of the ensemble.
@@ -213,7 +214,7 @@ class VarianceEstimator(BaseEstimator):
         ValueError
             When type_ is not supported.
         """
-        type_ = type_ or self.m_type
+        type_ = type_ or (self.var_type if return_std else self.m_type)
         if type_ == "mean":
             return self.predict_raw(X, **predict_params).mean(axis=0)
         elif type_ == "median":
