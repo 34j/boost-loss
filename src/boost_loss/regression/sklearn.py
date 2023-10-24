@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from copy import copy
-from typing import Any, Literal, Sequence
+from typing import Any, Literal, Sequence, overload
 
 import numpy as np
 from joblib import Parallel, delayed
@@ -184,13 +184,39 @@ class VarianceEstimator(BaseEstimator):
             [estimator.predict(X, **predict_params) for estimator in self.estimators_]
         )
 
+    @overload
     def predict(
         self,
         X: Any,
         type_: Literal["mean", "median", "var", "std", "range", "mae", "mse"]
         | None = None,
+        return_std: Literal[False] = False,
         **predict_params: Any,
     ) -> NDArray[Any]:
+        ...
+
+    @overload
+    def predict(
+        self,
+        X: Any,
+        type_: tuple[
+            Literal["mean", "median"], Literal["var", "std", "range", "mae", "mse"]
+        ]
+        | None = None,
+        return_std: Literal[True] = ...,
+        **predict_params: Any,
+    ) -> tuple[NDArray[Any], NDArray[Any]]:
+        ...
+
+    def predict(
+        self,
+        X: Any,
+        type_: Literal["mean", "median", "var", "std", "range", "mae", "mse"]
+        | tuple[Literal["mean", "median"], Literal["var", "std", "range", "mae", "mse"]]
+        | None = None,
+        return_std: bool = False,
+        **predict_params: Any,
+    ) -> NDArray[Any] | tuple[NDArray[Any], NDArray[Any]]:
         """Returns predictions of the ensemble.
 
         Parameters
@@ -200,6 +226,9 @@ class VarianceEstimator(BaseEstimator):
         type_ : Literal['mean', 'median', 'var', 'std', 'range', 'mae', 'mse'], optional
             Type of the prediction, by default None
             If None, self.m_type is used.
+        return_std : bool, optional
+            Whether to return a tuple of (predictions, standard deviation),
+            by default False
         **predict_params : Any
             The parameters to be passed to `predict` method of each estimator.
 
@@ -213,6 +242,17 @@ class VarianceEstimator(BaseEstimator):
         ValueError
             When type_ is not supported.
         """
+        if return_std or isinstance(type_, tuple):
+            if isinstance(type_, str):
+                type_tuple = (type_, self.var_type)
+            elif type_ is None:
+                type_tuple = (self.m_type, self.var_type)
+            else:
+                type_tuple = type_
+            return self.predict(
+                X, type_=type_tuple[0], **predict_params
+            ), self.predict_var(X, type_=type_tuple[1], **predict_params)
+
         type_ = type_ or self.m_type
         if type_ == "mean":
             return self.predict_raw(X, **predict_params).mean(axis=0)
