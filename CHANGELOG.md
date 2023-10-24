@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.3.5 (2023-10-24)
+
+### Fix
+
+* **sklearn:** Add `return_std` parameter in `VarianceEstimator` ([#101](https://github.com/34j/boost-loss/issues/101)) ([`d7c1625`](https://github.com/34j/boost-loss/commit/d7c16255483f87fe0f81b84bb393a0aefa4774d8))
+
 ## v0.3.4 (2023-10-23)
 
 ### Fix
