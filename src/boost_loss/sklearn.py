@@ -25,6 +25,7 @@ def apply_custom_loss(
     copy: bool = ...,
     target_transformer: None = ...,
     recursive: bool = ...,
+    recursive_strict: bool = ...,
 ) -> TEstimator:
     ...
 
@@ -37,6 +38,7 @@ def apply_custom_loss(
     copy: bool = ...,
     target_transformer: BaseEstimator = ...,
     recursive: bool = ...,
+    recursive_strict: bool = ...,
 ) -> TransformedTargetRegressor:
     ...
 
@@ -67,6 +69,10 @@ def apply_custom_loss(
     recursive : bool, optional
         Whether to recursively search for estimators inside the estimator
         and apply the custom loss to all of them, by default True
+    recursive_strict : bool, optional
+        Whether to recursively search for estimators inside the estimator's
+        attributes, lists, tuples, sets, and frozensets as well,
+        by default False
 
     Returns
     -------
@@ -96,9 +102,36 @@ def apply_custom_loss(
                 estimator.set_params(
                     **{
                         key: apply_custom_loss(
-                            value, loss, copy=False, target_transformer=None
+                            value,
+                            loss,
+                            copy=False,
+                            target_transformer=None,
+                            recursive=False,
+                            recursive_strict=False,
                         )
                     }
+                )
+    if recursive_strict:
+        if hasattr(estimator, "__dict__"):
+            for _, value in estimator.__dict__.items():
+                apply_custom_loss(
+                    value,
+                    loss,
+                    copy=False,
+                    target_transformer=None,
+                    recursive=True,
+                    recursive_strict=True,
+                )
+        elif isinstance(estimator, (list, tuple, set, frozenset)):
+            # https://github.com/scikit-learn/scikit-learn/blob/364c77e047ca08a95862becf40a04fe9d4cd2c98/sklearn/base.py#L66
+            for value in estimator:
+                apply_custom_loss(
+                    value,
+                    loss,
+                    copy=False,
+                    target_transformer=None,
+                    recursive=True,
+                    recursive_strict=True,
                 )
 
     if target_transformer is None:
@@ -145,6 +178,25 @@ if importlib.util.find_spec("ngboost") is not None:
             return dist.scale
 
         setattr(estimator, "predict_std", predict_std)
+
+        original_predict = estimator.predict
+
+        def predict(
+            X: Any,
+            *,
+            return_std: bool = False,
+            **predict_params: Any,
+        ) -> NDArray[Any] | tuple[NDArray[Any], NDArray[Any]]:
+            if return_std:
+                dist = self.pred_dist(X, **predict_params)
+                if not isinstance(dist, Normal):
+                    raise NotImplementedError
+                return dist.mean, dist.scale
+            else:
+                return original_predict(X, **predict_params)
+
+        setattr(estimator, "predict", predict)
+
         return estimator
 
 
@@ -165,33 +217,6 @@ def patch_catboost(estimator: cb.CatBoost) -> cb.CatBoost:
         The patched CatBoost estimator.
     """
     original_predict = estimator.predict
-
-    @functools.wraps(original_predict)
-    def predict(
-        data: Any,
-        prediction_type: Literal[
-            "Probability", "Class", "RawFormulaVal", "Exponent", "LogProbability"
-        ] = "RawFormulaVal",
-        ntree_start: int = 0,
-        ntree_end: int = 0,
-        thread_count: int = -1,
-        verbose: bool | None = None,
-        task_type: str = "CPU",
-    ) -> NDArray[Any]:
-        prediction = original_predict(
-            data,
-            prediction_type,
-            ntree_start,
-            ntree_end,
-            thread_count,
-            verbose,
-            task_type,
-        )
-        if prediction.ndim == 2:
-            return prediction[:, 0]
-        return prediction
-
-    setattr(estimator, "predict", predict)
 
     self = estimator
 
@@ -229,6 +254,45 @@ def patch_catboost(estimator: cb.CatBoost) -> cb.CatBoost:
             )
 
     setattr(estimator, "predict_var", predict_var)
+
+    @functools.wraps(original_predict)
+    def predict(
+        data: Any,
+        prediction_type: Literal[
+            "Probability", "Class", "RawFormulaVal", "Exponent", "LogProbability"
+        ] = "RawFormulaVal",
+        ntree_start: int = 0,
+        ntree_end: int = 0,
+        thread_count: int = -1,
+        verbose: bool | None = None,
+        task_type: str = "CPU",
+        return_std: bool = False,
+    ) -> NDArray[Any]:
+        prediction = original_predict(
+            data,
+            prediction_type,
+            ntree_start,
+            ntree_end,
+            thread_count,
+            verbose,
+            task_type,
+        )
+        if prediction.ndim == 2:
+            return prediction[:, 0]
+        if return_std:
+            # see virtual_ensembles_predict() for details
+            return prediction, np.sqrt(
+                predict_var(
+                    data,
+                    ntree_end=ntree_end,  # 0
+                    thread_count=thread_count,  # -1
+                    verbose=verbose,  # None
+                )
+            )
+        return prediction
+
+    setattr(estimator, "predict", predict)
+
     return estimator
 
 
@@ -275,7 +339,7 @@ def patch(
 
     if recursive and hasattr(estimator, "get_params"):
         for _, value in estimator.get_params(deep=True).items():
-            patch(value, copy=False, recursive=False, recursive_strict=recursive_strict)
+            patch(value, copy=False, recursive=False, recursive_strict=False)
     if recursive_strict:
         if hasattr(estimator, "__dict__"):
             for _, value in estimator.__dict__.items():
