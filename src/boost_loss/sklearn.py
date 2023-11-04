@@ -280,12 +280,13 @@ def patch_catboost(estimator: cb.CatBoost) -> cb.CatBoost:
         if prediction.ndim == 2:
             return prediction[:, 0]
         if return_std:
+            # see virtual_ensembles_predict() for details
             return prediction, np.sqrt(
                 predict_var(
                     data,
-                    thread_count=thread_count,
-                    verbose=verbose,
-                    task_type=task_type,
+                    ntree_end=ntree_end,  # 0
+                    thread_count=thread_count,  # -1
+                    verbose=verbose,  # None
                 )
             )
         return prediction
