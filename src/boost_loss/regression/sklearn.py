@@ -54,8 +54,8 @@ class VarianceEstimator(BaseEstimator):
         n_jobs: int | None = 1,
         verbose: int = 0,
         random_state: int | None = None,
-        m_type: Literal["mean", "median"] = "median",
-        var_type: Literal["var", "std", "range", "mae", "mse"] = "var",
+        m_type: Literal["mean", "median"] = "mean",
+        var_type: Literal["var", "std", "range", "mae", "mse"] = "std",
         target_transformer: BaseEstimator | Any | None = None,
     ) -> None:
         """Estimator that estimates the distribution by simply using multiple estimators
