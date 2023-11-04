@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.4.0 (2023-11-04)
+
+### Feature
+
+* Fix `recursive_strict` behavior for `apply_custom_loss` and `patch`, set default `var_type` to `"std"`, add more parameters to `VarianceEstimator` ([#105](https://github.com/34j/boost-loss/issues/105)) ([`24e90ac`](https://github.com/34j/boost-loss/commit/24e90ac96758ceebf665f2c74fd1e1d839d42534))
+
 ## v0.3.6 (2023-10-24)
 
 ### Fix
