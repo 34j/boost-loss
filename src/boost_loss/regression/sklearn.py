@@ -57,6 +57,8 @@ class VarianceEstimator(BaseEstimator):
         m_type: Literal["mean", "median"] = "mean",
         var_type: Literal["var", "std", "range", "mae", "mse"] = "std",
         target_transformer: BaseEstimator | Any | None = None,
+        recursive: bool = True,
+        recursive_strict: bool = False,
     ) -> None:
         """Estimator that estimates the distribution by simply using multiple estimators
         with different `t`.
@@ -99,6 +101,11 @@ class VarianceEstimator(BaseEstimator):
         target_transformer : BaseEstimator | Any | None, optional
             The transformer to use for transforming the target, by default None
             If `None`, no `TransformedTargetRegressor` is used.
+        recursive : bool, optional
+            Whether to recursively patch the estimator, by default True
+        recursive_strict : bool, optional
+            Whether to recursively patch the estimator's attributes,
+            lists, tuples, sets, and frozensets as well, by default False
 
         Raises
         ------
@@ -118,7 +125,9 @@ class VarianceEstimator(BaseEstimator):
         self.m_type = m_type
         self.var_type = var_type
         self.target_transformer = target_transformer
-        self.random = np.random.RandomState(random_state)
+        self.recursive = recursive
+        self.recursive_strict = recursive_strict
+        self.random_state_ = np.random.RandomState(random_state)
 
     def fit(self, X: Any, y: Any, **fit_params: Any) -> Self:
         """Fit each estimator with different `t`.
@@ -149,13 +158,17 @@ class VarianceEstimator(BaseEstimator):
                 self.estimator,
                 AsymmetricLoss(self.loss, t=t),
                 target_transformer=self.target_transformer,
+                recursive=self.recursive,
+                recursive_strict=self.recursive_strict,
             )
             for t in self.ts_
         ]
-        if self.random is not None:
+        if self.random_state_ is not None:
+            # set different random state for each estimator
+            # otherwise, estimators will be identical
             for estimator in estimators_:
                 _recursively_set_random_state(
-                    estimator, self.random.randint(0, np.iinfo(np.int32).max)
+                    estimator, self.random_state_.randint(0, np.iinfo(np.int32).max)
                 )
         parallel_result = Parallel(n_jobs=self.n_jobs, verbose=self.verbose)(
             [delayed(estimator.fit)(X, y, **fit_params) for estimator in estimators_]
