@@ -25,6 +25,7 @@ def apply_custom_loss(
     copy: bool = ...,
     target_transformer: None = ...,
     recursive: bool = ...,
+    recursive_strict: bool = ...,
 ) -> TEstimator:
     ...
 
@@ -37,6 +38,7 @@ def apply_custom_loss(
     copy: bool = ...,
     target_transformer: BaseEstimator = ...,
     recursive: bool = ...,
+    recursive_strict: bool = ...,
 ) -> TransformedTargetRegressor:
     ...
 
@@ -67,6 +69,10 @@ def apply_custom_loss(
     recursive : bool, optional
         Whether to recursively search for estimators inside the estimator
         and apply the custom loss to all of them, by default True
+    recursive_strict : bool, optional
+        Whether to recursively search for estimators inside the estimator's
+        attributes, lists, tuples, sets, and frozensets as well,
+        by default False
 
     Returns
     -------
@@ -96,9 +102,36 @@ def apply_custom_loss(
                 estimator.set_params(
                     **{
                         key: apply_custom_loss(
-                            value, loss, copy=False, target_transformer=None
+                            value,
+                            loss,
+                            copy=False,
+                            target_transformer=None,
+                            recursive=False,
+                            recursive_strict=False,
                         )
                     }
+                )
+    if recursive_strict:
+        if hasattr(estimator, "__dict__"):
+            for _, value in estimator.__dict__.items():
+                apply_custom_loss(
+                    value,
+                    loss,
+                    copy=False,
+                    target_transformer=None,
+                    recursive=True,
+                    recursive_strict=True,
+                )
+        elif isinstance(estimator, (list, tuple, set, frozenset)):
+            # https://github.com/scikit-learn/scikit-learn/blob/364c77e047ca08a95862becf40a04fe9d4cd2c98/sklearn/base.py#L66
+            for value in estimator:
+                apply_custom_loss(
+                    value,
+                    loss,
+                    copy=False,
+                    target_transformer=None,
+                    recursive=True,
+                    recursive_strict=True,
                 )
 
     if target_transformer is None:
@@ -275,7 +308,7 @@ def patch(
 
     if recursive and hasattr(estimator, "get_params"):
         for _, value in estimator.get_params(deep=True).items():
-            patch(value, copy=False, recursive=False, recursive_strict=recursive_strict)
+            patch(value, copy=False, recursive=False, recursive_strict=False)
     if recursive_strict:
         if hasattr(estimator, "__dict__"):
             for _, value in estimator.__dict__.items():
