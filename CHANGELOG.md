@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.4.2 (2023-11-05)
+
+### Fix
+
+* **sklearn:** Fix `_recursively_set_random_state()` imcompatible with `EstimatorWrapperBase` ([#107](https://github.com/34j/boost-loss/issues/107)) ([`ed13289`](https://github.com/34j/boost-loss/commit/ed13289e71dbc74ce5cc814eddfafd397db0e271))
+
 ## v0.4.1 (2023-11-05)
 
 ### Fix
