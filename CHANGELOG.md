@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.4.1 (2023-11-05)
+
+### Fix
+
+* **sklearn:** Check if estimator has `get_params()` and `set_params()` in `apply_custom_loss()` ([#106](https://github.com/34j/boost-loss/issues/106)) ([`3b77017`](https://github.com/34j/boost-loss/commit/3b77017c00a421a58fee5f725eae36975c422a92))
+
 ## v0.4.0 (2023-11-04)
 
 ### Feature
