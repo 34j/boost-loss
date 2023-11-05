@@ -97,20 +97,21 @@ def apply_custom_loss(
         estimator.set_params(objective=loss, eval_metric=loss.eval_metric_xgb_sklearn)
 
     if recursive:
-        for key, value in estimator.get_params(deep=True).items():
-            if hasattr(value, "fit"):
-                estimator.set_params(
-                    **{
-                        key: apply_custom_loss(
-                            value,
-                            loss,
-                            copy=False,
-                            target_transformer=None,
-                            recursive=False,
-                            recursive_strict=False,
-                        )
-                    }
-                )
+        if hasattr(estimator, "get_params") and hasattr(estimator, "set_params"):
+            for key, value in estimator.get_params(deep=True).items():
+                if hasattr(value, "fit"):
+                    estimator.set_params(
+                        **{
+                            key: apply_custom_loss(
+                                value,
+                                loss,
+                                copy=False,
+                                target_transformer=None,
+                                recursive=False,
+                                recursive_strict=False,
+                            )
+                        }
+                    )
     if recursive_strict:
         if hasattr(estimator, "__dict__"):
             for _, value in estimator.__dict__.items():
@@ -281,13 +282,15 @@ def patch_catboost(estimator: cb.CatBoost) -> cb.CatBoost:
             return prediction[:, 0]
         if return_std:
             # see virtual_ensembles_predict() for details
-            return prediction, np.sqrt(
+            return (
+                prediction,
                 predict_var(
                     data,
                     ntree_end=ntree_end,  # 0
                     thread_count=thread_count,  # -1
                     verbose=verbose,  # None
                 )
+                ** 0.5,
             )
         return prediction
 
