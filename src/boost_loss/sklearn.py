@@ -281,13 +281,15 @@ def patch_catboost(estimator: cb.CatBoost) -> cb.CatBoost:
             return prediction[:, 0]
         if return_std:
             # see virtual_ensembles_predict() for details
-            return prediction, np.sqrt(
+            return (
+                prediction,
                 predict_var(
                     data,
                     ntree_end=ntree_end,  # 0
                     thread_count=thread_count,  # -1
                     verbose=verbose,  # None
                 )
+                ** 0.5,
             )
         return prediction
 
