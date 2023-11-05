@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from copy import copy
 from typing import Any, Literal, Sequence, overload
 
 import numpy as np
 from joblib import Parallel, delayed
+from numpy.random import RandomState
 from numpy.typing import NDArray
 from sklearn.base import BaseEstimator
 from typing_extensions import Self
@@ -14,12 +14,18 @@ from ..sklearn import apply_custom_loss
 from .asymmetric import AsymmetricLoss
 
 
-def _recursively_set_random_state(estimator: BaseEstimator, random_state: int) -> None:
-    if hasattr(estimator, "random_state") and hasattr(estimator, "set_params"):
-        estimator.set_params(random_state=random_state)
-    for _, v in copy(estimator.get_params(deep=False)).items():
-        if hasattr(v, "get_params"):
-            _recursively_set_random_state(v, random_state)
+def _create_random_random_state(random_state: int | RandomState | None) -> RandomState:
+    seed = RandomState(random_state).randint(0, np.iinfo(np.int32).max)
+    return RandomState(seed)
+
+
+def _recursively_set_random_state(
+    estimator: BaseEstimator, random_state: int | RandomState | None
+) -> None:
+    state = RandomState(random_state)
+    for k, v in estimator.get_params(deep=True).items():
+        if isinstance(k, str) and k.endswith("_random_state") and v is not None:
+            estimator.set_params(**{k: _create_random_random_state(state)})
 
 
 class VarianceEstimator(BaseEstimator):
