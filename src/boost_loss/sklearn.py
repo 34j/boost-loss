@@ -97,20 +97,21 @@ def apply_custom_loss(
         estimator.set_params(objective=loss, eval_metric=loss.eval_metric_xgb_sklearn)
 
     if recursive:
-        for key, value in estimator.get_params(deep=True).items():
-            if hasattr(value, "fit"):
-                estimator.set_params(
-                    **{
-                        key: apply_custom_loss(
-                            value,
-                            loss,
-                            copy=False,
-                            target_transformer=None,
-                            recursive=False,
-                            recursive_strict=False,
-                        )
-                    }
-                )
+        if hasattr(estimator, "get_params") and hasattr(estimator, "set_params"):
+            for key, value in estimator.get_params(deep=True).items():
+                if hasattr(value, "fit"):
+                    estimator.set_params(
+                        **{
+                            key: apply_custom_loss(
+                                value,
+                                loss,
+                                copy=False,
+                                target_transformer=None,
+                                recursive=False,
+                                recursive_strict=False,
+                            )
+                        }
+                    )
     if recursive_strict:
         if hasattr(estimator, "__dict__"):
             for _, value in estimator.__dict__.items():
