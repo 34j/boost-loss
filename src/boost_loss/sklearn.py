@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import functools
 import importlib.util
+from copy import deepcopy
 from typing import Any, Literal, TypeVar, overload
 
 import catboost as cb
@@ -23,6 +24,9 @@ def apply_custom_loss(
     loss: LossBase,
     *,
     copy: bool = ...,
+    copy_loss: bool = ...,
+    apply_objective: bool = ...,
+    apply_eval_metric: bool = ...,
     target_transformer: None = ...,
     recursive: bool = ...,
     recursive_strict: bool = ...,
@@ -36,6 +40,9 @@ def apply_custom_loss(
     loss: LossBase,
     *,
     copy: bool = ...,
+    copy_loss: bool = ...,
+    apply_objective: bool = ...,
+    apply_eval_metric: bool = ...,
     target_transformer: BaseEstimator = ...,
     recursive: bool = ...,
     recursive_strict: bool = ...,
@@ -48,6 +55,9 @@ def apply_custom_loss(
     loss: LossBase,
     *,
     copy: bool = True,
+    copy_loss: bool = True,
+    apply_objective: bool = True,
+    apply_eval_metric: bool = True,
     target_transformer: BaseEstimator | Any | None = StandardScaler(),
     recursive: bool = True,
     recursive_strict: bool = False,
@@ -62,6 +72,12 @@ def apply_custom_loss(
         The custom loss to apply
     copy : bool, optional
         Whether to copy the estimator using `sklearn.base.clone`, by default True
+    copy_loss : bool, optional
+        Whether to copy the loss using `copy.deepcopy`, by default True
+    apply_objective : bool, optional
+        Whether to apply the custom loss to the estimator's objective, by default True
+    apply_eval_metric : bool, optional
+        Whether to apply the custom loss to the estimator's eval_metric, by default True
     target_transformer : BaseEstimator | Any | None, optional
         The target transformer to use, by default StandardScaler()
         (This option exists because some loss functions require the target
@@ -81,20 +97,30 @@ def apply_custom_loss(
     """
     if copy:
         estimator = clone(estimator)
+    if copy_loss:
+        loss = deepcopy(loss)
     if isinstance(estimator, cb.CatBoost):
-        estimator.set_params(loss_function=loss, eval_metric=loss)
+        if apply_objective:
+            estimator.set_params(loss_function=loss)
+        if apply_eval_metric:
+            estimator.set_params(eval_metric=loss)
     if isinstance(estimator, lgb.LGBMModel):
-        estimator.set_params(objective=loss)
-        estimator_fit = estimator.fit
+        if apply_objective:
+            estimator.set_params(objective=loss)
+        if apply_eval_metric:
+            estimator_fit = estimator.fit
 
-        @functools.wraps(estimator_fit)
-        def fit(X: Any, y: Any, **fit_params: Any) -> Any:
-            fit_params["eval_metric"] = loss.eval_metric_lgb
-            return estimator_fit(X, y, **fit_params)
+            @functools.wraps(estimator_fit)
+            def fit(X: Any, y: Any, **fit_params: Any) -> Any:
+                fit_params["eval_metric"] = loss.eval_metric_lgb
+                return estimator_fit(X, y, **fit_params)
 
-        setattr(estimator, "fit", fit)
+            setattr(estimator, "fit", fit)
     if isinstance(estimator, xgb.XGBModel):
-        estimator.set_params(objective=loss, eval_metric=loss.eval_metric_xgb_sklearn)
+        if apply_objective:
+            estimator.set_params(objective=loss)
+        if apply_eval_metric:
+            estimator.set_params(eval_metric=loss.eval_metric_xgb_sklearn)
 
     if recursive:
         if hasattr(estimator, "get_params") and hasattr(estimator, "set_params"):
@@ -106,6 +132,9 @@ def apply_custom_loss(
                                 value,
                                 loss,
                                 copy=False,
+                                copy_loss=copy_loss,
+                                apply_objective=apply_objective,
+                                apply_eval_metric=apply_eval_metric,
                                 target_transformer=None,
                                 recursive=False,
                                 recursive_strict=False,
@@ -119,6 +148,9 @@ def apply_custom_loss(
                     value,
                     loss,
                     copy=False,
+                    copy_loss=copy_loss,
+                    apply_objective=apply_objective,
+                    apply_eval_metric=apply_eval_metric,
                     target_transformer=None,
                     recursive=True,
                     recursive_strict=True,
@@ -130,6 +162,9 @@ def apply_custom_loss(
                     value,
                     loss,
                     copy=False,
+                    copy_loss=copy_loss,
+                    apply_objective=apply_objective,
+                    apply_eval_metric=apply_eval_metric,
                     target_transformer=None,
                     recursive=True,
                     recursive_strict=True,
