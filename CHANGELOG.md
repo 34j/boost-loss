@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.5.0 (2023-11-07)
+
+### Feature
+
+* **sklearn:** Add `copy_loss`, `apply_objective` and `apply_eval_metric` parameter to `apply_custom_loss()` ([#108](https://github.com/34j/boost-loss/issues/108)) ([`e877604`](https://github.com/34j/boost-loss/commit/e8776041eb08082c99d00500987edcb75184cbeb))
+
 ## v0.4.2 (2023-11-05)
 
 ### Fix
