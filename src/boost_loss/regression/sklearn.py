@@ -62,6 +62,8 @@ class VarianceEstimator(BaseEstimator):
         random_state: int | None = None,
         m_type: Literal["mean", "median"] = "mean",
         var_type: Literal["var", "std", "range", "mae", "mse"] = "std",
+        apply_objective: bool = True,
+        apply_eval_metric: bool = True,
         target_transformer: BaseEstimator | Any | None = None,
         recursive: bool = True,
         recursive_strict: bool = False,
@@ -104,6 +106,10 @@ class VarianceEstimator(BaseEstimator):
             M-statistics type to return from `predict` by default, by default "median"
         var_type : Literal[&quot;var&quot;, &quot;std&quot;, &quot;range&quot;, &quot;mae&quot;, &quot;mse&quot;], optional
             Variance type to return from `predict` by default, by default "var"
+        apply_objective : bool, optional
+            Whether to apply the custom loss to the estimator's objective, by default True
+        apply_eval_metric : bool, optional
+            Whether to apply the custom loss to the estimator's eval_metric, by default True
         target_transformer : BaseEstimator | Any | None, optional
             The transformer to use for transforming the target, by default None
             If `None`, no `TransformedTargetRegressor` is used.
@@ -130,6 +136,8 @@ class VarianceEstimator(BaseEstimator):
         self.random_state = random_state
         self.m_type = m_type
         self.var_type = var_type
+        self.apply_objective = apply_objective
+        self.apply_eval_metric = apply_eval_metric
         self.target_transformer = target_transformer
         self.recursive = recursive
         self.recursive_strict = recursive_strict
@@ -163,6 +171,8 @@ class VarianceEstimator(BaseEstimator):
             apply_custom_loss(
                 self.estimator,
                 AsymmetricLoss(self.loss, t=t),
+                apply_objective=self.apply_objective,
+                apply_eval_metric=self.apply_eval_metric,
                 target_transformer=self.target_transformer,
                 recursive=self.recursive,
                 recursive_strict=self.recursive_strict,
