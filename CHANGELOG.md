@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.5.2 (2023-12-20)
+
+### Fix
+
+* **deps:** Update dependency xgboost to v2.0.3 ([#126](https://github.com/34j/boost-loss/issues/126)) ([`b4ddf21`](https://github.com/34j/boost-loss/commit/b4ddf2157670a82bbcb79ee5e58188de777d5bd5))
+
 ## v0.5.1 (2023-11-13)
 
 ### Fix
