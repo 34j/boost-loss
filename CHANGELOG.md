@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.5.3 (2023-12-22)
+
+### Fix
+
+* **deps:** Update dependency lightgbm to v4.2.0 ([#127](https://github.com/34j/boost-loss/issues/127)) ([`f090ad3`](https://github.com/34j/boost-loss/commit/f090ad3437c52e1a1227bad045580220f75b6e82))
+
 ## v0.5.2 (2023-12-20)
 
 ### Fix
