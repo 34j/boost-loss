@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.5.4 (2023-12-31)
+
+### Fix
+
+* **deps:** Update dependency attrs to v23.2.0 ([#130](https://github.com/34j/boost-loss/issues/130)) ([`7620a33`](https://github.com/34j/boost-loss/commit/7620a335fb761bd22c983cddefa1e4266d126980))
+
 ## v0.5.3 (2023-12-22)
 
 ### Fix
