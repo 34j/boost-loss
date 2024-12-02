@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "boost-loss"
-version = "0.5.5"
+version = "0.5.1"
 description = "Utilities for easy use of custom losses in CatBoost, LightGBM, XGBoost"
 authors = ["34j <34j.95a2p@simplelogin.com>"]
 license = "MIT"
