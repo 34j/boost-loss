@@ -343,7 +343,7 @@ class LossBase(metaclass=ABCMeta):
         self,
         y_true: NDArray | lgb.Dataset | xgb.DMatrix,
         y_pred: NDArray | lgb.Dataset | xgb.DMatrix,
-        sample_weight: NDArray | lgb.Dataset | xgb.DMatrix | None = None
+        sample_weight: NDArray | lgb.Dataset | xgb.DMatrix | None = None,
         # not used, exists for eval_metric_xgb_sklearn
     ) -> tuple[str, float, bool]:
         """LightGBM-compatible interface"""
