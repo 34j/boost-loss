@@ -204,9 +204,7 @@ class LogLoss(LossBase):
         return -y_true / (1 + np.exp(y_true * y_pred))
 
     def hess(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
-        return (
-            y_true**2 * np.exp(y_true * y_pred) / (1 + np.exp(y_true * y_pred)) ** 2
-        )
+        return y_true**2 * np.exp(y_true * y_pred) / (1 + np.exp(y_true * y_pred)) ** 2
 
 
 class MSLELoss(LossBase):
