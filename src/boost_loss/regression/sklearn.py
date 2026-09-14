@@ -217,32 +217,37 @@ class VarianceEstimator(BaseEstimator):
     def predict(
         self,
         X: Any,
-        type_: Literal["mean", "median", "var", "std", "range", "mae", "mse"]
-        | None = None,
+        type_: (
+            Literal["mean", "median", "var", "std", "range", "mae", "mse"] | None
+        ) = None,
         return_std: Literal[False] = False,
         **predict_params: Any,
-    ) -> NDArray[Any]:
-        ...
+    ) -> NDArray[Any]: ...
 
     @overload
     def predict(
         self,
         X: Any,
-        type_: tuple[
-            Literal["mean", "median"], Literal["var", "std", "range", "mae", "mse"]
-        ]
-        | None = None,
+        type_: (
+            tuple[
+                Literal["mean", "median"], Literal["var", "std", "range", "mae", "mse"]
+            ]
+            | None
+        ) = None,
         return_std: Literal[True] = ...,
         **predict_params: Any,
-    ) -> tuple[NDArray[Any], NDArray[Any]]:
-        ...
+    ) -> tuple[NDArray[Any], NDArray[Any]]: ...
 
     def predict(
         self,
         X: Any,
-        type_: Literal["mean", "median", "var", "std", "range", "mae", "mse"]
-        | tuple[Literal["mean", "median"], Literal["var", "std", "range", "mae", "mse"]]
-        | None = None,
+        type_: (
+            Literal["mean", "median", "var", "std", "range", "mae", "mse"]
+            | tuple[
+                Literal["mean", "median"], Literal["var", "std", "range", "mae", "mse"]
+            ]
+            | None
+        ) = None,
         return_std: bool = False,
         **predict_params: Any,
     ) -> NDArray[Any] | tuple[NDArray[Any], NDArray[Any]]:

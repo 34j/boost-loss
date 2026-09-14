@@ -30,8 +30,7 @@ def apply_custom_loss(
     target_transformer: None = ...,
     recursive: bool = ...,
     recursive_strict: bool = ...,
-) -> TEstimator:
-    ...
+) -> TEstimator: ...
 
 
 @overload
@@ -46,8 +45,7 @@ def apply_custom_loss(
     target_transformer: BaseEstimator = ...,
     recursive: bool = ...,
     recursive_strict: bool = ...,
-) -> TransformedTargetRegressor:
-    ...
+) -> TransformedTargetRegressor: ...
 
 
 def apply_custom_loss(
