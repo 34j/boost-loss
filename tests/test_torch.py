@@ -22,11 +22,9 @@ from .test_base import assert_array_almost_equal
 try:
     from torch.nn.modules.loss import MSELoss
 
-    PARAMETERS.append(
-        (TorchLossBase.from_callable_torch(MSELoss())(), L2Loss(divide_n_grad=False))
-    )
+    PARAMETERS.append((TorchLossBase.from_callable_torch(MSELoss())(), L2Loss(divide_n_grad=False)))
 except ValueError as e:
-    warnings.warn(f"Failed to import MSELoss from PyTorch. Skip the test. {e}")
+    warnings.warn(f"Failed to import MSELoss from PyTorch. Skip the test. {e}", stacklevel=2)
 
 
 @parameterized_class(("loss_torch", "loss_base"), PARAMETERS)

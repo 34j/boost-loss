@@ -38,14 +38,8 @@ else:
         Y = ve.predict_raw(X)
         Y = DataFrame(Y.T, columns=[f"{t:g}/{norm.ppf(t):g}" for t in ve.ts_])
         sns.violinplot(data=Y)
-        plt.title(
-            f"Violin plot of predictions for estimator {estimator.__class__.__name__}"
-        )
-        path = (
-            Path(__file__).parent
-            / ".cache"
-            / f"test_normal_{estimator.__class__.__name__}.png"
-        )
+        plt.title(f"Violin plot of predictions for estimator {estimator.__class__.__name__}")
+        path = Path(__file__).parent / ".cache" / f"test_normal_{estimator.__class__.__name__}.png"
         path.parent.mkdir(exist_ok=True)
         plt.savefig(path)
         plt.close()

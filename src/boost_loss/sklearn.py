@@ -3,7 +3,7 @@ from __future__ import annotations
 import functools
 import importlib.util
 from copy import deepcopy
-from typing import Any, Literal, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
 
 import catboost as cb
 import lightgbm as lgb
@@ -13,13 +13,21 @@ from sklearn.base import BaseEstimator, clone
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
 
-from .base import LossBase
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
+    from .base import LossBase
+
+if not hasattr(xgb.XGBRegressor, "_estimator_type"):
+    xgb.XGBRegressor._estimator_type = "regressor"
+if not hasattr(xgb.XGBClassifier, "_estimator_type"):
+    xgb.XGBClassifier._estimator_type = "classifier"
 
 TEstimator = TypeVar("TEstimator", cb.CatBoost, lgb.LGBMModel, xgb.XGBModel)
 
 
 @overload
-def apply_custom_loss(
+def apply_custom_loss[TEstimator: (cb.CatBoost, lgb.LGBMModel, xgb.XGBModel)](
     estimator: TEstimator,
     loss: LossBase,
     *,
@@ -30,12 +38,11 @@ def apply_custom_loss(
     target_transformer: None = ...,
     recursive: bool = ...,
     recursive_strict: bool = ...,
-) -> TEstimator:
-    ...
+) -> TEstimator: ...
 
 
 @overload
-def apply_custom_loss(
+def apply_custom_loss[TEstimator: (cb.CatBoost, lgb.LGBMModel, xgb.XGBModel)](
     estimator: TEstimator,
     loss: LossBase,
     *,
@@ -46,11 +53,10 @@ def apply_custom_loss(
     target_transformer: BaseEstimator = ...,
     recursive: bool = ...,
     recursive_strict: bool = ...,
-) -> TransformedTargetRegressor:
-    ...
+) -> TransformedTargetRegressor: ...
 
 
-def apply_custom_loss(
+def apply_custom_loss[TEstimator: (cb.CatBoost, lgb.LGBMModel, xgb.XGBModel)](
     estimator: TEstimator,
     loss: LossBase,
     *,
@@ -94,6 +100,7 @@ def apply_custom_loss(
     -------
     TEstimator | TransformedTargetRegressor
         The estimator with the custom loss applied
+
     """
     if copy:
         estimator = clone(estimator)
@@ -115,35 +122,32 @@ def apply_custom_loss(
                 fit_params["eval_metric"] = loss.eval_metric_lgb
                 return estimator_fit(X, y, **fit_params)
 
-            setattr(estimator, "fit", fit)
+            estimator.fit = fit
     if isinstance(estimator, xgb.XGBModel):
         if apply_objective:
             estimator.set_params(objective=loss)
         if apply_eval_metric:
             estimator.set_params(eval_metric=loss.eval_metric_xgb_sklearn)
 
-    if recursive:
-        if hasattr(estimator, "get_params") and hasattr(estimator, "set_params"):
-            for key, value in estimator.get_params(deep=True).items():
-                if hasattr(value, "fit"):
-                    estimator.set_params(
-                        **{
-                            key: apply_custom_loss(
-                                value,
-                                loss,
-                                copy=False,
-                                copy_loss=copy_loss,
-                                apply_objective=apply_objective,
-                                apply_eval_metric=apply_eval_metric,
-                                target_transformer=None,
-                                recursive=False,
-                                recursive_strict=False,
-                            )
-                        }
+    if recursive and hasattr(estimator, "get_params") and hasattr(estimator, "set_params"):
+        for key, value in estimator.get_params(deep=True).items():
+            if hasattr(value, "fit"):
+                estimator.set_params(**{
+                    key: apply_custom_loss(
+                        value,
+                        loss,
+                        copy=False,
+                        copy_loss=copy_loss,
+                        apply_objective=apply_objective,
+                        apply_eval_metric=apply_eval_metric,
+                        target_transformer=None,
+                        recursive=False,
+                        recursive_strict=False,
                     )
+                })
     if recursive_strict:
         if hasattr(estimator, "__dict__"):
-            for _, value in estimator.__dict__.items():
+            for value in estimator.__dict__.values():
                 apply_custom_loss(
                     value,
                     loss,
@@ -178,7 +182,6 @@ def apply_custom_loss(
 if importlib.util.find_spec("ngboost") is not None:
     from ngboost import NGBoost
     from ngboost.distns import Normal
-    from numpy.typing import NDArray
 
     def patch_ngboost(estimator: NGBoost) -> NGBoost:
         """Patch NGBoost to return only the mean prediction in `predict`
@@ -195,8 +198,8 @@ if importlib.util.find_spec("ngboost") is not None:
         -------
         NGBoost
             The patched NGBoost estimator.
-        """
 
+        """
         self = estimator
 
         def predict_var(X: Any, **predict_params: Any) -> NDArray[Any]:
@@ -205,7 +208,7 @@ if importlib.util.find_spec("ngboost") is not None:
                 raise NotImplementedError
             return dist.var
 
-        setattr(estimator, "predict_var", predict_var)
+        estimator.predict_var = predict_var
 
         def predict_std(X: Any, **predict_params: Any) -> NDArray[Any]:
             dist = self.pred_dist(X, **predict_params)
@@ -213,7 +216,7 @@ if importlib.util.find_spec("ngboost") is not None:
                 raise NotImplementedError
             return dist.scale
 
-        setattr(estimator, "predict_std", predict_std)
+        estimator.predict_std = predict_std
 
         original_predict = estimator.predict
 
@@ -228,10 +231,9 @@ if importlib.util.find_spec("ngboost") is not None:
                 if not isinstance(dist, Normal):
                     raise NotImplementedError
                 return dist.mean, dist.scale
-            else:
-                return original_predict(X, **predict_params)
+            return original_predict(X, **predict_params)
 
-        setattr(estimator, "predict", predict)
+        estimator.predict = predict
 
         return estimator
 
@@ -251,6 +253,7 @@ def patch_catboost(estimator: cb.CatBoost) -> cb.CatBoost:
     -------
     cb.CatBoost
         The patched CatBoost estimator.
+
     """
     original_predict = estimator.predict
 
@@ -279,17 +282,16 @@ def patch_catboost(estimator: cb.CatBoost) -> cb.CatBoost:
 
         if prediction_type == "knowledge":
             return knowledge_uncertainty
-        elif prediction_type == "data":
+        if prediction_type == "data":
             return data_uncertainty
-        elif prediction_type == "total":
+        if prediction_type == "total":
             return knowledge_uncertainty + data_uncertainty
-        else:
-            raise ValueError(
-                "prediction_type must be one of ['knowledge', 'data', 'total'], "
-                f"but got {prediction_type}"
-            )
+        raise ValueError(
+            "prediction_type must be one of ['knowledge', 'data', 'total'], "
+            f"but got {prediction_type}"
+        )
 
-    setattr(estimator, "predict_var", predict_var)
+    estimator.predict_var = predict_var
 
     @functools.wraps(original_predict)
     def predict(
@@ -329,7 +331,7 @@ def patch_catboost(estimator: cb.CatBoost) -> cb.CatBoost:
             )
         return prediction
 
-    setattr(estimator, "predict", predict)
+    estimator.predict = predict
 
     return estimator
 
@@ -337,7 +339,7 @@ def patch_catboost(estimator: cb.CatBoost) -> cb.CatBoost:
 TAny = TypeVar("TAny")
 
 
-def patch(
+def patch[TAny](
     estimator: TAny,
     *,
     copy: bool = True,
@@ -364,23 +366,23 @@ def patch(
     -------
     TAny
         The patched estimator.
+
     """
     if recursive_strict and not recursive:
         raise ValueError("recursive_strict requires recursive=True")
     if copy:
         estimator = clone(estimator)
-    if importlib.util.find_spec("ngboost") is not None:
-        if isinstance(estimator, NGBoost):
-            return patch_ngboost(estimator)
+    if importlib.util.find_spec("ngboost") is not None and isinstance(estimator, NGBoost):
+        return patch_ngboost(estimator)
     if isinstance(estimator, cb.CatBoost):
         return patch_catboost(estimator)
 
     if recursive and hasattr(estimator, "get_params"):
-        for _, value in estimator.get_params(deep=True).items():
+        for value in estimator.get_params(deep=True).values():
             patch(value, copy=False, recursive=False, recursive_strict=False)
     if recursive_strict:
         if hasattr(estimator, "__dict__"):
-            for _, value in estimator.__dict__.items():
+            for value in estimator.__dict__.values():
                 patch(value, copy=False, recursive=True, recursive_strict=True)
         elif isinstance(estimator, (list, tuple, set, frozenset)):
             # https://github.com/scikit-learn/scikit-learn/blob/364c77e047ca08a95862becf40a04fe9d4cd2c98/sklearn/base.py#L66

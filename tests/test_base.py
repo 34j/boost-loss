@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import TYPE_CHECKING
 from unittest import SkipTest, TestCase
 
 import catboost as cb
@@ -13,9 +14,11 @@ from sklearn.datasets import load_diabetes
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
-from boost_loss.base import LossBase
 from boost_loss.regression.regression import L2Loss, LogCoshLoss
 from boost_loss.sklearn import apply_custom_loss
+
+if TYPE_CHECKING:
+    from boost_loss.base import LossBase
 
 
 def assert_array_almost_equal(a, b):
@@ -63,8 +66,7 @@ class TestBase(TestCase):
 
     def tearDown(self) -> None:
         if hasattr(self, "y_pred"):
-            score = self.loss.loss(self.y_test, self.y_pred)
-            print(f"Score: {score}")
+            self.loss.loss(self.y_test, self.y_pred)
 
     @lru_cache
     def catboost_baseline(self):
@@ -215,9 +217,7 @@ class TestBasic(TestBase):
     def test_xgboost_sklearn(self):
         # https://xgboost.readthedocs.io/en/latest/tutorials/custom_metric_obj.html#customized-objective-function
         # https://xgboost.readthedocs.io/en/latest/tutorials/custom_metric_obj.html#customized-metric-function
-        model = xgb.XGBRegressor(
-            objective=self.loss, eval_metric=self.loss.eval_metric_xgb_sklearn
-        )
+        model = xgb.XGBRegressor(objective=self.loss, eval_metric=self.loss.eval_metric_xgb_sklearn)
         model.fit(
             self.X_train,
             self.y_train,
@@ -326,9 +326,7 @@ class TestWeighted(TestBase):
     def test_xgboost_sklearn(self):
         # https://xgboost.readthedocs.io/en/latest/tutorials/custom_metric_obj.html#customized-objective-function
         # https://xgboost.readthedocs.io/en/latest/tutorials/custom_metric_obj.html#customized-metric-function
-        model = xgb.XGBRegressor(
-            objective=self.loss, eval_metric=self.loss.eval_metric_xgb_sklearn
-        )
+        model = xgb.XGBRegressor(objective=self.loss, eval_metric=self.loss.eval_metric_xgb_sklearn)
         model.fit(
             self.X_train,
             self.y_train,

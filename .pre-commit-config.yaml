@@ -52,3 +52,4 @@ repos:
         require_serial: true
         language: system
         pass_filenames: false
+        stages: [manual]

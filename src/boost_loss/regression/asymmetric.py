@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import attrs
 import numpy as np
-from numpy.typing import NDArray
 
-from ..base import LossBase
+from boost_loss.base import LossBase
+
 from .regression import L1Loss, L2Loss
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 
 @attrs.define()
@@ -21,12 +26,11 @@ class AsymmetricCompositeLoss(LossBase):
     """The loss function if `y_true >= y_pred`."""
 
     def loss(self, y_true: NDArray, y_pred: NDArray) -> float | NDArray:
-        loss = np.where(
+        return np.where(
             y_true < y_pred,
             self.loss_pred_less.loss(y_true=y_true, y_pred=y_pred),
             self.loss_pred_greater.loss(y_true=y_true, y_pred=y_pred),
         )
-        return loss
 
     def grad_hess(self, y_true: NDArray, y_pred: NDArray) -> tuple[NDArray, NDArray]:
         grad, hess = np.where(
@@ -63,7 +67,8 @@ class ExpectileLoss(AsymmetricLoss):
 
     .. math::
         \tau \int_{-\infty}^{\mu_\tau} (y - \mu_\tau) dF(y)
-        = (1 - \tau) \int_{\mu_\tau}^{\infty} (y - \mu_\tau) dF(y)"""
+        = (1 - \tau) \int_{\mu_\tau}^{\infty} (y - \mu_\tau) dF(y)
+    """
 
     def __init__(self, t: float = 0.5) -> None:
         super().__init__(L2Loss(), t)

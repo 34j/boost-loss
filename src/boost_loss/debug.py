@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from logging import getLogger
+from typing import TYPE_CHECKING
 
 import attrs
-from numpy.typing import NDArray
 
 from .base import LossBase
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 LOG = getLogger(__name__)
 
@@ -18,12 +21,12 @@ class DebugLoss(LossBase):
 
     def loss(self, y_true: NDArray, y_pred: NDArray) -> float | NDArray:
         loss = self.loss_.loss(y_true=y_true, y_pred=y_pred)
-        LOG.debug(f"y_true: {y_true}, y_pred: {y_pred}, loss: {loss}")
+        LOG.debug("y_true: %s, y_pred: %s, loss: %s", y_true, y_pred, loss)
         return loss
 
     def grad_hess(self, y_true: NDArray, y_pred: NDArray) -> tuple[NDArray, NDArray]:
         grad, hess = self.loss_.grad_hess(y_true=y_true, y_pred=y_pred)
-        LOG.debug(f"y_true: {y_true}, y_pred: {y_pred}, grad: {grad}, hess: {hess}")
+        LOG.debug("y_true: %s, y_pred: %s, grad: %s, hess: %s", y_true, y_pred, grad, hess)
         return grad, hess
 
 
@@ -34,11 +37,8 @@ class PrintLoss(LossBase):
     loss_: LossBase
 
     def loss(self, y_true: NDArray, y_pred: NDArray) -> float | NDArray:
-        loss = self.loss_.loss(y_true=y_true, y_pred=y_pred)
-        print(f"y_true: {y_true}, y_pred: {y_pred}, loss: {loss}")
-        return loss
+        return self.loss_.loss(y_true=y_true, y_pred=y_pred)
 
     def grad_hess(self, y_true: NDArray, y_pred: NDArray) -> tuple[NDArray, NDArray]:
         grad, hess = self.loss_.grad_hess(y_true=y_true, y_pred=y_pred)
-        print(f"y_true: {y_true}, y_pred: {y_pred}, grad: {grad}, hess: {hess}")
         return grad, hess
