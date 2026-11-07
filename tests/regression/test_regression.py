@@ -13,9 +13,9 @@ class TestRegression(TestCase):
         loss = l2.loss(y_true=y_true, y_pred=y_pred)
         grad = l2.grad(y_true=y_true, y_pred=y_pred)
         hess = l2.hess(y_true=y_true, y_pred=y_pred)
-        self.assertEqual(grad.tolist(), (y_pred - y_true).tolist())
-        self.assertEqual(hess.tolist(), np.ones_like(y_pred).tolist())
-        self.assertEqual(loss.tolist(), ((y_pred - y_true) ** 2).tolist())
+        assert grad.tolist() == (y_pred - y_true).tolist()
+        assert hess.tolist() == np.ones_like(y_pred).tolist()
+        assert loss.tolist() == ((y_pred - y_true) ** 2).tolist()
 
     def test_l1(self):
         l1 = L1Loss()
@@ -24,7 +24,7 @@ class TestRegression(TestCase):
         loss = l1.loss(y_true=y_true, y_pred=y_pred)
         grad = l1.grad(y_true=y_true, y_pred=y_pred)
         hess = l1.hess(y_true=y_true, y_pred=y_pred)
-        self.assertEqual(grad.tolist(), np.sign(y_pred - y_true).tolist())
+        assert grad.tolist() == np.sign(y_pred - y_true).tolist()
         # NOTE: not np.zeros_like because it does not work
-        self.assertEqual(hess.tolist(), np.ones_like(y_pred).tolist())
-        self.assertEqual(loss.tolist(), np.abs(y_pred - y_true).tolist())
+        assert hess.tolist() == np.ones_like(y_pred).tolist()
+        assert loss.tolist() == np.abs(y_pred - y_true).tolist()

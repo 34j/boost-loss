@@ -1,17 +1,21 @@
 from __future__ import annotations
 
-from typing import Any, Literal, Sequence, overload
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
 import numpy as np
 from joblib import Parallel, delayed
 from numpy.random import RandomState
-from numpy.typing import NDArray
 from sklearn.base import BaseEstimator
-from typing_extensions import Self
 
-from ..base import LossBase
-from ..sklearn import apply_custom_loss
+from boost_loss.sklearn import apply_custom_loss
+
 from .asymmetric import AsymmetricLoss
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
+    from boost_loss.base import LossBase
 
 
 def _create_random_random_state(random_state: int | RandomState | None) -> RandomState:
@@ -123,6 +127,7 @@ class VarianceEstimator(BaseEstimator):
         ------
         TypeError
             Raises if `estimator` does not have `fit` method or `predict` method.
+
         """
         if not hasattr(estimator, "fit"):
             raise TypeError(f"{estimator} does not have fit method")
@@ -162,6 +167,7 @@ class VarianceEstimator(BaseEstimator):
         ------
         RuntimeError
             Raises if joblib fails to return the results.
+
         """
         ts = self.ts
         if isinstance(ts, int):
@@ -186,9 +192,9 @@ class VarianceEstimator(BaseEstimator):
                 _recursively_set_random_state(
                     estimator, self.random_state_.randint(0, np.iinfo(np.int32).max)
                 )
-        parallel_result = Parallel(n_jobs=self.n_jobs, verbose=self.verbose)(
-            [delayed(estimator.fit)(X, y, **fit_params) for estimator in estimators_]
-        )
+        parallel_result = Parallel(n_jobs=self.n_jobs, verbose=self.verbose)([
+            delayed(estimator.fit)(X, y, **fit_params) for estimator in estimators_
+        ])
         if parallel_result is None:
             raise RuntimeError("joblib.Parallel returned None")
         self.estimators_ = parallel_result
@@ -208,34 +214,28 @@ class VarianceEstimator(BaseEstimator):
         -------
         NDArray[Any]
             Raw predictions of each estimator with shape (n_estimators, n_samples)
+
         """
-        return np.array(
-            [estimator.predict(X, **predict_params) for estimator in self.estimators_]
-        )
+        return np.array([estimator.predict(X, **predict_params) for estimator in self.estimators_])
 
     @overload
     def predict(
         self,
         X: Any,
-        type_: Literal["mean", "median", "var", "std", "range", "mae", "mse"]
-        | None = None,
+        type_: Literal["mean", "median", "var", "std", "range", "mae", "mse"] | None = None,
         return_std: Literal[False] = False,
         **predict_params: Any,
-    ) -> NDArray[Any]:
-        ...
+    ) -> NDArray[Any]: ...
 
     @overload
     def predict(
         self,
         X: Any,
-        type_: tuple[
-            Literal["mean", "median"], Literal["var", "std", "range", "mae", "mse"]
-        ]
+        type_: tuple[Literal["mean", "median"], Literal["var", "std", "range", "mae", "mse"]]
         | None = None,
         return_std: Literal[True] = ...,
         **predict_params: Any,
-    ) -> tuple[NDArray[Any], NDArray[Any]]:
-        ...
+    ) -> tuple[NDArray[Any], NDArray[Any]]: ...
 
     def predict(
         self,
@@ -270,6 +270,7 @@ class VarianceEstimator(BaseEstimator):
         ------
         ValueError
             When type_ is not supported.
+
         """
         if return_std or isinstance(type_, tuple):
             if isinstance(type_, str):
@@ -278,29 +279,29 @@ class VarianceEstimator(BaseEstimator):
                 type_tuple = (self.m_type, self.var_type)
             else:
                 type_tuple = type_
-            return self.predict(
-                X, type_=type_tuple[0], **predict_params
-            ), self.predict_var(X, type_=type_tuple[1], **predict_params)
+            return self.predict(X, type_=type_tuple[0], **predict_params), self.predict_var(
+                X, type_=type_tuple[1], **predict_params
+            )
 
         type_ = type_ or self.m_type
         if type_ == "mean":
             return self.predict_raw(X, **predict_params).mean(axis=0)
-        elif type_ == "median":
+        if type_ == "median":
             return np.median(self.predict_raw(X, **predict_params), axis=0)
-        elif type_ == "var":
+        if type_ == "var":
             return self.predict_raw(X, **predict_params).var(axis=0)
-        elif type_ == "std":
+        if type_ == "std":
             return self.predict_raw(X, **predict_params).std(axis=0)
-        elif type_ == "range":
+        if type_ == "range":
             return self.predict_raw(X, **predict_params).max(axis=0) - self.predict_raw(
                 X, **predict_params
             ).min(axis=0)
-        elif type_ == "mae":
+        if type_ == "mae":
             return np.abs(
                 self.predict_raw(X, **predict_params)
                 - self.predict_raw(X, **predict_params).mean(axis=0)
             ).mean(axis=0)
-        elif type_ == "mse":
+        if type_ == "mse":
             return (
                 (
                     self.predict_raw(X, **predict_params)
@@ -308,8 +309,7 @@ class VarianceEstimator(BaseEstimator):
                 )
                 ** 2
             ).mean(axis=0)
-        else:
-            raise ValueError(f"Unknown type_: {type_}")
+        raise ValueError(f"Unknown type_: {type_}")
 
     def predict_var(
         self,
@@ -333,6 +333,7 @@ class VarianceEstimator(BaseEstimator):
         -------
         NDArray[Any]
             Variance of the ensemble with shape (n_samples,)
+
         """
         type_ = type_ or self.var_type
         return self.predict(X, type_=type_, **predict_params)

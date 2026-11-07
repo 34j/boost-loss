@@ -1,18 +1,20 @@
 from __future__ import annotations
 
-from abc import ABCMeta
-from typing import Any, Callable, final
+from abc import ABC
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, Self, final
 
 import attrs
 import numpy as np
 import torch
-from numpy.typing import NDArray
-from typing_extensions import Self
 
 from .base import LossBase, _get_name_from_callable
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
-class TorchLossBase(LossBase, metaclass=ABCMeta):
+
+class TorchLossBase(LossBase, ABC):
     """Calculate gradient and hessian using `torch.autograd.grad`.
     One of `loss_torch` and `grad_torch` must be implemented.
 
@@ -55,8 +57,9 @@ class TorchLossBase(LossBase, metaclass=ABCMeta):
         ------
         NotImplementedError
             If not implemented.
+
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def grad_torch(self, y_true: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
         """The 1st order derivative of loss w.r.t. y_pred.
@@ -77,18 +80,16 @@ class TorchLossBase(LossBase, metaclass=ABCMeta):
         ------
         NotImplementedError
             If not implemented.
+
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @final
     def loss(self, y_true: NDArray, y_pred: NDArray) -> NDArray | float:
-        loss = self.loss_torch(
-            torch.from_numpy(y_true), torch.from_numpy(y_pred)
-        ).detach()
+        loss = self.loss_torch(torch.from_numpy(y_true), torch.from_numpy(y_pred)).detach()
         if loss.ndim == 0:
             return loss.item()
-        else:
-            return loss.numpy()
+        return loss.numpy()
 
     @final
     def grad_hess(self, y_true: NDArray, y_pred: NDArray) -> tuple[NDArray, NDArray]:
@@ -100,19 +101,15 @@ class TorchLossBase(LossBase, metaclass=ABCMeta):
         except NotImplementedError:
             loss = torch.mean(self.loss_torch(y_true_, y_pred_)) * y_true_.size(0)
             grad = torch.autograd.grad(loss, y_pred_, create_graph=True)[0]
-            hess = np.array(
-                [
-                    torch.autograd.grad(grad_, y_pred_, retain_graph=True)[0][i].item()
-                    for i, grad_ in enumerate(grad)
-                ]
-            )
+            hess = np.array([
+                torch.autograd.grad(grad_, y_pred_, retain_graph=True)[0][i].item()
+                for i, grad_ in enumerate(grad)
+            ])
         else:
-            hess = np.array(
-                [
-                    torch.autograd.grad(grad_, y_pred_, create_graph=True)[0][i].item()
-                    for i, grad_ in enumerate(grad)
-                ]
-            )
+            hess = np.array([
+                torch.autograd.grad(grad_, y_pred_, create_graph=True)[0][i].item()
+                for i, grad_ in enumerate(grad)
+            ])
         return grad.detach().numpy(), hess
 
     @classmethod
@@ -149,6 +146,7 @@ class TorchLossBase(LossBase, metaclass=ABCMeta):
         ------
         ValueError
             If name is None and it can't infer from loss function.
+
         """
         if name is None:
             try:
@@ -160,7 +158,7 @@ class TorchLossBase(LossBase, metaclass=ABCMeta):
         return type(
             name,
             (cls,),
-            dict(loss_torch=staticmethod(loss), is_higher_better=is_higher_better),
+            {"loss_torch": staticmethod(loss), "is_higher_better": is_higher_better},
         )
 
 
@@ -178,9 +176,7 @@ class _LNLossTorch_(TorchLossBase):
                 "divide_n_grad and divide_n_loss must be the same, "
                 f"but got {self.divide_n_grad} and {self.divide_n_loss}"
             )
-        return torch.abs(y_true - y_pred) ** self.n / (
-            self.n if self.divide_n_loss else 1
-        )
+        return torch.abs(y_true - y_pred) ** self.n / (self.n if self.divide_n_loss else 1)
 
 
 @attrs.define(kw_only=True)
@@ -192,9 +188,7 @@ class _LNLossTorch(TorchLossBase):
     divide_n_grad: bool = True
 
     def loss_torch(self, y_true: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
-        return torch.abs(y_pred - y_true) ** self.n / (
-            self.n if self.divide_n_loss else 1
-        )
+        return torch.abs(y_pred - y_true) ** self.n / (self.n if self.divide_n_loss else 1)
 
     def grad_torch(self, y_true: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
         return (

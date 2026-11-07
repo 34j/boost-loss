@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from logging import getLogger
+from typing import TYPE_CHECKING
 
 import attrs
 import numpy as np
-from numpy.typing import NDArray
 
-from ..base import LossBase
+from boost_loss.base import LossBase
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 LOG = getLogger(__name__)
 
@@ -16,7 +19,8 @@ LOG = getLogger(__name__)
 class LNLoss(LossBase):
     """LNLoss = |y_true - y_pred|^n
     - x < 1 is not recommended because the loss is not convex.
-    - x >> 2 is not recommended because the gradient is too steep."""
+    - x >> 2 is not recommended because the gradient is too steep.
+    """
 
     n: float
     """The exponent of the loss."""
@@ -54,9 +58,7 @@ class LNLoss(LossBase):
 class L1Loss(LNLoss):
     """L1 loss = |y_true - y_pred|."""
 
-    def __init__(
-        self, *, divide_n_loss: bool = False, divide_n_grad: bool = True
-    ) -> None:
+    def __init__(self, *, divide_n_loss: bool = False, divide_n_grad: bool = True) -> None:
         """L1 loss.
 
         Parameters
@@ -65,6 +67,7 @@ class L1Loss(LNLoss):
             Whether to divide the loss by n, by default False
         divide_n_grad : bool, optional
             Whether to divide the gradient by n, by default True
+
         """
         super().__init__(n=1, divide_n_loss=divide_n_loss, divide_n_grad=divide_n_grad)
 
@@ -73,11 +76,9 @@ class L1Loss(LNLoss):
 
 
 class L2Loss(LNLoss):
-    """L2 loss = |y_true - y_pred|^2"""
+    """L2 loss = |y_true - y_pred|^2."""
 
-    def __init__(
-        self, *, divide_n_loss: bool = False, divide_n_grad: bool = True
-    ) -> None:
+    def __init__(self, *, divide_n_loss: bool = False, divide_n_grad: bool = True) -> None:
         """L2 loss.
 
         Parameters
@@ -86,12 +87,13 @@ class L2Loss(LNLoss):
             Whether to divide the loss by n, by default False
         divide_n_grad : bool, optional
             Whether to divide the gradient by n, by default True
+
         """
         super().__init__(n=2, divide_n_loss=divide_n_loss, divide_n_grad=divide_n_grad)
 
 
 class LogCoshLoss(LossBase):
-    """LogCosh loss = log(cosh(y_true - y_pred))"""
+    """LogCosh loss = log(cosh(y_true - y_pred))."""
 
     def loss(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
         return np.log(np.cosh(y_pred - y_true))
@@ -105,7 +107,8 @@ class LogCoshLoss(LossBase):
 
 class HuberLoss(LossBase):
     """Huber loss = 0.5 (y_true - y_pred)^2 if |y_true - y_pred| <= delta
-    else delta * (|y_true - y_pred| - 0.5 * delta)"""
+    else delta * (|y_true - y_pred| - 0.5 * delta).
+    """
 
     def __init__(self, delta: float = 1.0) -> None:
         """Huber loss.
@@ -114,6 +117,7 @@ class HuberLoss(LossBase):
         ----------
         delta : float, optional
             The parameter delta, by default 1.0
+
         """
         self.delta = delta
 
@@ -144,7 +148,8 @@ class HuberLoss(LossBase):
 
 class FairLoss(LossBase):
     """Fair loss = c^2/2 * (abs(y_true - y_pred) -
-    c * log(1 + abs(y_true - y_pred)/c))"""
+    c * log(1 + abs(y_true - y_pred)/c)).
+    """
 
     def __init__(self, c: float = 1.0) -> None:
         """Fair loss.
@@ -153,6 +158,7 @@ class FairLoss(LossBase):
         ----------
         c : float, optional
             The parameter c, by default 1.0
+
         """
         self.c = c
 
@@ -160,17 +166,12 @@ class FairLoss(LossBase):
         return (
             self.c**2
             / 2
-            * (
-                np.abs(y_true - y_pred)
-                - self.c * np.log(1 + np.abs(y_true - y_pred) / self.c)
-            )
+            * (np.abs(y_true - y_pred) - self.c * np.log(1 + np.abs(y_true - y_pred) / self.c))
         )
 
     def grad(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
         return (
-            self.c**2
-            / 2
-            * (np.sign(y_pred - y_true) - self.c / (self.c + np.abs(y_pred - y_true)))
+            self.c**2 / 2 * (np.sign(y_pred - y_true) - self.c / (self.c + np.abs(y_pred - y_true)))
         )
 
     def hess(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
@@ -182,7 +183,7 @@ class FairLoss(LossBase):
 
 
 class PoissonLoss(LossBase):
-    """Poisson loss = y_pred - y_true * log(y_pred)"""
+    """Poisson loss = y_pred - y_true * log(y_pred)."""
 
     def loss(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
         return y_pred - y_true * np.log(y_pred)
@@ -195,7 +196,7 @@ class PoissonLoss(LossBase):
 
 
 class LogLoss(LossBase):
-    """Log loss = log(1 + exp(-y_true * y_pred))"""
+    """Log loss = log(1 + exp(-y_true * y_pred))."""
 
     def loss(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
         return np.log(1 + np.exp(-y_true * y_pred))
@@ -204,13 +205,11 @@ class LogLoss(LossBase):
         return -y_true / (1 + np.exp(y_true * y_pred))
 
     def hess(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
-        return (
-            y_true**2 * np.exp(y_true * y_pred) / (1 + np.exp(y_true * y_pred)) ** 2
-        )
+        return y_true**2 * np.exp(y_true * y_pred) / (1 + np.exp(y_true * y_pred)) ** 2
 
 
 class MSLELoss(LossBase):
-    """Mean squared logarithmic error loss = (log(1 + y_true) - log(1 + y_pred))^2"""
+    """Mean squared logarithmic error loss = (log(1 + y_true) - log(1 + y_pred))^2."""
 
     def loss(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
         return np.square(np.log1p(y_true) - np.log1p(y_pred))
@@ -223,7 +222,7 @@ class MSLELoss(LossBase):
 
 
 class MAPELoss(LossBase):
-    """Mean absolute percentage error loss = abs(y_true - y_pred) / y_true"""
+    """Mean absolute percentage error loss = abs(y_true - y_pred) / y_true."""
 
     def loss(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
         return np.abs(y_true - y_pred) / y_true
@@ -237,7 +236,8 @@ class MAPELoss(LossBase):
 
 class SMAPELoss(LossBase):
     """Symmetric mean absolute percentage error loss =
-    abs(y_true - y_pred) / ((abs(y_true) + abs(y_pred))/2)"""
+    abs(y_true - y_pred) / ((abs(y_true) + abs(y_pred))/2).
+    """
 
     def loss(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
         return np.abs(y_true - y_pred) / ((np.abs(y_true) + np.abs(y_pred)) / 2)
@@ -250,7 +250,7 @@ class SMAPELoss(LossBase):
 
 
 class TweedieLoss(LossBase):
-    """Tweedie loss = -y_true * y_pred^(2-p) / (2-p) + y_pred^(1-p) / (1-p)"""
+    """Tweedie loss = -y_true * y_pred^(2-p) / (2-p) + y_pred^(1-p) / (1-p)."""
 
     def __init__(self, p: float = 1.5) -> None:
         """Tweedie loss.
@@ -259,25 +259,26 @@ class TweedieLoss(LossBase):
         ----------
         p : float, optional
             The parameter p, by default 1.5
+
         """
         self.p = p
 
     def loss(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
-        return -y_true * y_pred ** (2 - self.p) / (2 - self.p) + y_pred ** (
+        return -y_true * y_pred ** (2 - self.p) / (2 - self.p) + y_pred ** (1 - self.p) / (
             1 - self.p
-        ) / (1 - self.p)
+        )
 
     def grad(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
         return -y_true * (2 - self.p) * y_pred ** (1 - self.p) + y_pred ** (-self.p)
 
     def hess(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
-        return y_true * (2 - self.p) * (1 - self.p) * y_pred ** (
+        return y_true * (2 - self.p) * (1 - self.p) * y_pred ** (-self.p - 1) - self.p * y_pred ** (
             -self.p - 1
-        ) - self.p * y_pred ** (-self.p - 1)
+        )
 
 
 class GammaLoss(LossBase):
-    """Gamma loss = y_true / y_pred - log(y_true / y_pred) - 1"""
+    """Gamma loss = y_true / y_pred - log(y_true / y_pred) - 1."""
 
     def loss(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
         return y_true / y_pred - np.log(y_true / y_pred) - 1

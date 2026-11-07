@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 import warnings
-from abc import ABCMeta
+from abc import ABC
+from collections.abc import Callable, Sequence
 from logging import getLogger
 from numbers import Real
-from typing import Any, Callable, Sequence, final
+from typing import TYPE_CHECKING, Any, Self, final
 
 import attrs
 import humps
 import lightgbm as lgb
 import numpy as np
 import xgboost as xgb
-from numpy.typing import NDArray
-from typing_extensions import Self
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 LOG = getLogger(__name__)
 
@@ -39,17 +41,17 @@ def _dataset_to_ndarray(
 
 def _get_name_from_callable(obj: Callable[..., Any]) -> str:
     if hasattr(obj, "__name__"):
-        return getattr(obj, "__name__")
-    if hasattr(obj, "__class__") and hasattr(getattr(obj, "__class__"), "__name__"):
-        return getattr(getattr(obj, "__class__"), "__name__")
+        return obj.__name__
+    if hasattr(obj, "__class__") and hasattr(obj.__class__, "__name__"):
+        return obj.__class__.__name__
     raise ValueError(f"Could not get name from callable {obj}")
 
 
-class LossBase(metaclass=ABCMeta):
+class LossBase(ABC):
     """Base class for loss functions.
     Inherit this class to implement custom loss function.
 
-    See Also
+    See Also:
     --------
     Catboost:
     https://catboost.ai/en/docs/concepts/python-usages-examples#user-defined-loss-function
@@ -60,7 +62,7 @@ class LossBase(metaclass=ABCMeta):
     XGBoost:
     https://xgboost.readthedocs.io/en/latest/tutorials/custom_metric_obj.html
 
-    Example
+    Example:
     -------
     >>> from boost_loss.base import LossBase
     >>> import numpy as np
@@ -77,6 +79,7 @@ class LossBase(metaclass=ABCMeta):
     >>> from boost.sklearn import apply_custom_loss
     >>> import lightgbm as lgb
     >>> apply_custom_loss(lgb.LGBMRegressor(), L2Loss()).fit(X, y)
+
     """
 
     is_higher_better: bool = False
@@ -124,6 +127,7 @@ class LossBase(metaclass=ABCMeta):
         ------
         ValueError
             If name is None and it can't infer from loss function.
+
         """
         if name is None:
             try:
@@ -135,12 +139,12 @@ class LossBase(metaclass=ABCMeta):
         return type(
             name,
             (cls,),
-            dict(
-                loss=staticmethod(loss),
-                grad=staticmethod(grad),
-                hess=staticmethod(hess),
-                is_higher_better=is_higher_better,
-            ),
+            {
+                "loss": staticmethod(loss),
+                "grad": staticmethod(grad),
+                "hess": staticmethod(hess),
+                "is_higher_better": is_higher_better,
+            },
         )
 
     @property
@@ -151,9 +155,7 @@ class LossBase(metaclass=ABCMeta):
         grad_inherited = cls.grad is not LossBase.grad
         hess_inherited = cls.hess is not LossBase.hess
         grad_hess_inherited = cls.grad_hess is not LossBase.grad_hess
-        if grad_inherited and hess_inherited:
-            pass
-        elif grad_hess_inherited:
+        if (grad_inherited and hess_inherited) or grad_hess_inherited:
             pass
         else:
             raise TypeError(
@@ -170,6 +172,7 @@ class LossBase(metaclass=ABCMeta):
         -------
         str
             Snake case of class name. e.g. `LogCoshLoss` -> `log_cosh_loss`.
+
         """
         return humps.decamelize(self.__class__.__name__.replace("Loss", ""))
 
@@ -192,8 +195,9 @@ class LossBase(metaclass=ABCMeta):
         ------
         NotImplementedError
             If not implemented.
+
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def hess(self, y_true: NDArray, y_pred: NDArray) -> NDArray:
         """The 2nd order derivative (hessian) of loss w.r.t. y_pred.
@@ -214,8 +218,9 @@ class LossBase(metaclass=ABCMeta):
         ------
         NotImplementedError
             If not implemented.
+
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def loss(self, y_true: NDArray, y_pred: NDArray) -> NDArray | float:
         """Loss function. If 1-D array is returned, the mean of array is calculated.
@@ -238,8 +243,9 @@ class LossBase(metaclass=ABCMeta):
         ------
         NotImplementedError
             If not implemented.
+
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def grad_hess(self, y_true: NDArray, y_pred: NDArray) -> tuple[NDArray, NDArray]:
         """Gradient and hessian of loss function. Override this method if you want to
@@ -257,10 +263,9 @@ class LossBase(metaclass=ABCMeta):
         tuple[NDArray, NDArray]
             The gradient and hessian of loss function.
             1-D array with shape (n_samples,).
+
         """
-        return self.grad(y_true=y_true, y_pred=y_pred), self.hess(
-            y_true=y_true, y_pred=y_pred
-        )
+        return self.grad(y_true=y_true, y_pred=y_pred), self.hess(y_true=y_true, y_pred=y_pred)
 
     def _grad_hess_weighted(
         self, y_true: NDArray, y_pred: NDArray, weight: NDArray
@@ -274,6 +279,7 @@ class LossBase(metaclass=ABCMeta):
                 "If LightGBM or XGBoost is used, the estimator will return "
                 "nonsense values (like all 0s if 100%).",
                 RuntimeWarning,
+                stacklevel=2,
             )
         grad, hess = grad * weight, hess * weight
         grad, hess = grad * self._grad_hess_sign, hess * self._grad_hess_sign
@@ -284,13 +290,16 @@ class LossBase(metaclass=ABCMeta):
         self,
         y_true: NDArray | lgb.Dataset | xgb.DMatrix,
         y_pred: NDArray | lgb.Dataset | xgb.DMatrix,
+        sample_weight: NDArray | None = None,
     ) -> tuple[NDArray, NDArray]:
-        """Sklearn-compatible interface (Sklearn, LightGBM, XGBoost)"""
-        if isinstance(y_pred, lgb.Dataset) or isinstance(y_pred, xgb.DMatrix):
+        """Sklearn-compatible interface (Sklearn, LightGBM, XGBoost)."""
+        if isinstance(y_pred, (lgb.Dataset, xgb.DMatrix)):
             # NOTE: swap (it is so fucking that the order is inconsistent)
             y_true, y_pred = y_pred, y_true
         y_true, weight = _dataset_to_ndarray(y=y_true)
         y_pred, _ = _dataset_to_ndarray(y=y_pred)
+        if sample_weight is not None:
+            weight = sample_weight
         return self._grad_hess_weighted(y_true=y_true, y_pred=y_pred, weight=weight)
 
     @final
@@ -300,20 +309,18 @@ class LossBase(metaclass=ABCMeta):
         targets: Sequence[float],
         weights: Sequence[float] | None = None,
     ) -> list[tuple[float, float]]:
-        """Catboost-compatible interface"""
+        """Catboost-compatible interface."""
         y_pred = np.array(preds)
         y_true = np.array(targets)
         weight = np.array(weights) if weights is not None else np.ones_like(y_pred)
-        grad, hess = self._grad_hess_weighted(
-            y_true=y_true, y_pred=y_pred, weight=weight
-        )
+        grad, hess = self._grad_hess_weighted(y_true=y_true, y_pred=y_pred, weight=weight)
         # NOTE: in catboost, the definition of loss is the inverse
         grad, hess = -grad, -hess
-        return list(zip(grad, hess))
+        return list(zip(grad, hess, strict=False))
 
     @final
     def is_max_optimal(self) -> bool:
-        """Catboost-compatible interface"""
+        """Catboost-compatible interface."""
         return self.is_higher_better
 
     @final
@@ -323,19 +330,19 @@ class LossBase(metaclass=ABCMeta):
         target: Sequence[float],
         weight: Sequence[float] | None = None,
     ) -> tuple[float, float]:
-        """Catboost-compatible interface"""
+        """Catboost-compatible interface."""
         approxes_ = np.array(approxes[0])
         targets_ = np.array(target)
         weights_ = np.array(weight) if weight is not None else np.ones_like(approxes_)
         loss = self.loss(y_true=targets_, y_pred=approxes_)
         if isinstance(loss, float) and not np.allclose(weights_, 1.0):
-            warnings.warn("loss() should return ndarray when weight is not all 1.0")
+            warnings.warn("loss() should return ndarray when weight is not all 1.0", stacklevel=2)
             return loss, np.nan
         return float(np.sum(loss * weights_)), float(np.sum(weights_))
 
     @final
     def get_final_error(self, error: float, weight: float | None = None) -> float:
-        """Catboost-compatible interface"""
+        """Catboost-compatible interface."""
         return error / (weight + 1e-38) if weight is not None else error
 
     @final
@@ -343,11 +350,11 @@ class LossBase(metaclass=ABCMeta):
         self,
         y_true: NDArray | lgb.Dataset | xgb.DMatrix,
         y_pred: NDArray | lgb.Dataset | xgb.DMatrix,
-        sample_weight: NDArray | lgb.Dataset | xgb.DMatrix | None = None
+        sample_weight: NDArray | lgb.Dataset | xgb.DMatrix | None = None,
         # not used, exists for eval_metric_xgb_sklearn
     ) -> tuple[str, float, bool]:
-        """LightGBM-compatible interface"""
-        if isinstance(y_pred, lgb.Dataset) or isinstance(y_pred, xgb.DMatrix):
+        """LightGBM-compatible interface."""
+        if isinstance(y_pred, (lgb.Dataset, xgb.DMatrix)):
             # NOTE: swap (it is so fucking that the order is inconsistent)
             y_true, y_pred = y_pred, y_true
         y_true, weight = _dataset_to_ndarray(y=y_true)
@@ -356,7 +363,7 @@ class LossBase(metaclass=ABCMeta):
         y_pred, _ = _dataset_to_ndarray(y=y_pred)
         loss = self.loss(y_true=y_true, y_pred=y_pred)
         if isinstance(loss, float) and not np.allclose(weight, 1.0):
-            warnings.warn("loss() should return ndarray when weight is not all 1.0")
+            warnings.warn("loss() should return ndarray when weight is not all 1.0", stacklevel=2)
             return self.name, loss, self.is_higher_better
         return (
             self.name,
@@ -370,7 +377,7 @@ class LossBase(metaclass=ABCMeta):
         y_true: NDArray | lgb.Dataset | xgb.DMatrix,
         y_pred: NDArray | lgb.Dataset | xgb.DMatrix,
     ) -> tuple[str, float]:
-        """XGBoost-native-api-compatible interface"""
+        """XGBoost-native-api-compatible interface."""
         result = self.eval_metric_lgb(y_true=y_true, y_pred=y_pred)
         return result[0], result[1]
 
@@ -381,10 +388,8 @@ class LossBase(metaclass=ABCMeta):
         y_pred: NDArray | lgb.Dataset | xgb.DMatrix,
         sample_weight: NDArray | lgb.Dataset | xgb.DMatrix | None = None,
     ) -> float:
-        """XGBoost-sklearn-api-compatible interface"""
-        result = self.eval_metric_lgb(
-            y_true=y_true, y_pred=y_pred, sample_weight=sample_weight
-        )
+        """XGBoost-sklearn-api-compatible interface."""
+        result = self.eval_metric_lgb(y_true=y_true, y_pred=y_pred, sample_weight=sample_weight)
         return result[1]
 
     def __add__(self, other: LossBase) -> LossBase:
@@ -395,12 +400,12 @@ class LossBase(metaclass=ABCMeta):
     def __sub__(self, other: LossBase) -> LossBase:
         return self.__add__(-other)
 
-    def __mul__(self, other: float | int | Real) -> LossBase:
+    def __mul__(self, other: float | Real) -> LossBase:
         if not isinstance(other, Real):
             return NotImplemented
         return _LossMul(self, other)
 
-    def __div__(self, other: float | int | Real) -> LossBase:
+    def __div__(self, other: float | Real) -> LossBase:
         return self.__mul__(1.0 / other)
 
     def __radd__(self, other: LossBase) -> LossBase:
@@ -409,10 +414,10 @@ class LossBase(metaclass=ABCMeta):
     def __rsub__(self, other: LossBase) -> LossBase:
         return self.__sub__(other)
 
-    def __rmul__(self, other: float | int | Real) -> LossBase:
+    def __rmul__(self, other: float | Real) -> LossBase:
         return self.__mul__(other)
 
-    def __rdiv__(self, other: float | int | Real) -> LossBase:
+    def __rdiv__(self, other: float | Real) -> LossBase:
         return self.__div__(other)
 
     def __neg__(self) -> LossBase:
